@@ -1,6 +1,7 @@
 import networkx as nx
 import random
 
+
 def build_t_partite_graph(t: int, n: int, N: int):
     """
     Costruisce un grafo t-partito con t partizioni di n vertici ciascuna.
@@ -30,35 +31,37 @@ def build_t_partite_graph(t: int, n: int, N: int):
             part.append(node)
         partitions.append(part)
 
-    # Per ogni coppia di partizioni consecutive aggiungiamo tutti gli archi e assegniamo etichette
-    edges_per_pair = n * n
-    base = N // edges_per_pair
+    countersVertex={}
+    countersEdge={}
+    allTraj=[]
+    for traj in range(N):
+        S=[]
+        for i in range(t):
+            randomj=random.randint(0,n-1)
+            S.append((i,randomj))
+            countersVertex[(i,randomj)]=countersVertex.get((i,randomj),0)+1
+            if len(S)!=1:
+                last=S[-2]
+                edge=(last,(i,randomj))
+                countersEdge[edge]=countersEdge.get(edge,0)+1
+        allTraj.append(S)
 
-    for i in range(t - 1):
-        # generiamo la lista degli archi (ordine deterministico)
-        arc_list = []
-        node_list = []
-        for u in partitions[i]:
-            node_list.append(u)
-            for v in partitions[i + 1]:
-                arc_list.append((u, v))
+    for node,vcount in countersVertex.items():
+        G.nodes[node]["count"] = vcount
 
-        sum=0
-        # Assegniamo etichette: primi `rem` archi ricevono base+1, gli altri base
-        for k, (u, v) in enumerate(arc_list):
-            if u[1]==v[1]:
-                continue
-            label = int(random.random()*base)
-            sum+=label
-            G.add_edge(u, v, label=int(label))
-        
-        remaining=(N-sum)//n
-        remrem=(N-sum)%n
-        print("remaining", remaining)
-        for k, u in enumerate(node_list):
-            lab=remaining+(1 if k<remrem else 0)
-            print("Adding edge", (i,u[1]), (i+1,u[1]), "with label", int(lab) )
-            G.add_edge((i,u[1]), (i+1,u[1]), label=int(lab))
+    for (u, v), ecount in countersEdge.items():
+        # ensure nodes exist even if not already added (defensive)
+        if u not in G:
+        #    G.add_node(u, count=0, label="0")
+            print("Error u not in G")
+            exit()
+        if v not in G:
+            print("Error v not in G")
+            exit()
+        #    G.add_node(v, count=0, label="0")
+
+        # store edge count, plus label/weight
+        G.add_edge(u, v, weight=ecount)
 
     return G, partitions
 
@@ -105,31 +108,39 @@ if __name__ == "__main__":
     G, parts = build_t_partite_graph(t, n, N)
     print("nodes", G.nodes())
     print("edges", G.edges())
+
+    for i in range(t):
+        s=0
+        for u in parts[i]:
+            s+=G.nodes[u]["count"]
+            print("Vertex", u, "with count", G.nodes[u]["count"])
+        print(f"Somma etichette dei vertici partizione {i}: {s}")
+
     # Verifica: stampiamo la somma delle etichette per ogni coppia di partizioni consecutive
     for i in range(t - 1):
         s = 0
         for u in parts[i]:
             for v in parts[i + 1]:
-                s += G[u][v]['label']
-                print("edge from ", u, "to", v ,"with label", G[u][v]['label'])
+                s += G[u][v]['weight']
+                print("edge from", u, "to", v ,"with label", G[u][v]['weight'])
         print(f"Somma etichette tra partizione {i} e {i+1}: {s}")
     
-    count=0
-    while True:
-        count+=1
-        path=get_next_travel_diary(G, parts)
-        if path==None:
-            break
-        print(path)
-        for edge in path:
-            u=edge[0]
-            v=edge[1]
-            G[u][v]['label']-=1
-            if G[u][v]['label']==0:
-                G.remove_edge(u,v)
-    print("count", count)
-    residualEdges=G.edges()
-    print(residualEdges)
+#    count=0
+#    while True:
+#        count+=1
+#        path=get_next_travel_diary(G, parts)
+#        if path==None:
+#            break
+#        print(path)
+#        for edge in path:
+#            u=edge[0]
+#            v=edge[1]
+#            G[u][v]['label']-=1
+#            if G[u][v]['label']==0:
+#                G.remove_edge(u,v)
+#    print("count", count)
+#    residualEdges=G.edges()
+#    print(residualEdges)
 
 #TODO genera istanze dove per ogni nodo indegree(v)==outdegree(v) 
 #per ogni nodo v nelle partizioni intermedie
