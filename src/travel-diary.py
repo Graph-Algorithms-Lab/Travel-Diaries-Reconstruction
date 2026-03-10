@@ -3,10 +3,11 @@ import random
 import copy
 
 VERBOSE=True
-DEBUG=False
-TRACE=False
+DEBUG=True
+TRACE=True
+GO_BACK_HOME=True
 
-def build_t_partite_graph(t: int, n: int, N: int):
+def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
     """
     Costruisce un grafo t-partito con t partizioni di n vertici ciascuna.
     Tra la partizione i ed i+1 il grafo è completo (K_{n,n}).
@@ -41,32 +42,48 @@ def build_t_partite_graph(t: int, n: int, N: int):
     for traj in range(N):
         S=[]
         for i in range(t):
+
             randomj=random.randint(0,n-1)
-            S.append((i,randomj))
-            countersVertex[(i,randomj)]=countersVertex.get((i,randomj),0)+1
-            if len(S)!=1:
-                last=S[-2]
-                edge=(last,(i,randomj))
-                countersEdge[edge]=countersEdge.get(edge,0)+1
+
+            if GO_BACK_HOME and i == t-1: randomj=S[0][1]
+
+            new_node = i, randomj
+            S.append(new_node)
+            countersVertex[new_node] = countersVertex.get(new_node,0) + 1
+            if len(S) != 1 and Edge:
+                edge=(S[-2], new_node)
+                countersEdge[edge] = countersEdge.get(edge,0) + 1
+
+        if TRACE:
+            print("Generated trajectory", S)
+
         allTraj.append(S)
 
     for node,vcount in countersVertex.items():
         G.nodes[node]["count"] = vcount
 
-    for (u, v), ecount in countersEdge.items():
-        # ensure nodes exist even if not already added (defensive)
-        if u not in G:
-        #    G.add_node(u, count=0, label="0")
-            print("Error u not in G")
-            exit()
-        if v not in G:
-            print("Error v not in G")
-            exit()
-        #    G.add_node(v, count=0, label="0")
+    if Edge:
+        for (u, v), ecount in countersEdge.items():
+            # ensure nodes exist even if not already added (defensive)
+            if u not in G:
+            #    G.add_node(u, count=0, label="0")
+                print("Error u not in G")
+                exit()
+            if v not in G:
+                print("Error v not in G")
+                exit()
+            #    G.add_node(v, count=0, label="0")
 
-        # store edge count, plus label/weight
-        G.add_edge(u, v, weight=ecount)
+            # store edge count, plus label/weight
+            G.add_edge(u, v, weight=ecount)
+    else:
+        for i in range(t-1):
+            for u in partitions[i]:
+                for v in partitions[i+1]:
+                    G.add_edge(u, v)
 
+    # print ("Built graph with", G.number_of_nodes(), "nodes and", G.number_of_edges(), "edges")
+    
     return G, partitions
 
 def get_degree_distr(G, list):
@@ -86,13 +103,12 @@ def get_next_vertex(G, vertex, uniform ):
     gneigh=list(G.successors(vertex))
     if TRACE:
         print("The neighbors of vertex", vertex, "are", gneigh)
-    dest=choose_destination(G, gneigh, uniform )
-    return dest
+    return choose_destination(G, gneigh, uniform )
 
 def choose_destination(G, part, uniform=True):
     candidate=[]
     for v in part:
-        if G.nodes[v]["count"]>0:
+        if G.nodes[v].get("count", 0) > 0:
             candidate.append(v)
     if len(candidate)==0:
         return None
@@ -110,9 +126,15 @@ def get_next_travel_diary(G, partitions, uniform=True, Edge=True):
             return None
     path=[u]
     for i in range(len(partitions)-1): 
-        v=get_next_vertex(G, u, uniform)
+        
+        if i == len(partitions)-2 and GO_BACK_HOME:
+            v = i + 1, path[0][1]
+        else:
+            v = get_next_vertex(G, u, uniform)
+        
         if v==None:
             break
+        
         if TRACE:
             print("next vertex", v)
         path.append(v)
@@ -123,19 +145,22 @@ def get_next_travel_diary(G, partitions, uniform=True, Edge=True):
     for u in path:
         if G.nodes[u]["count"]<=0:
             print("G.nodes[u][count]<=0")
-            system.exit()
+            exit(1)
         G.nodes[u]["count"]-=1
     #Aggiorniamo gli archi
     if Edge:
         for i in range(len(path)-1):
             u=path[i]
             v=path[i+1]
-            if G[u][v]["weight"]<=0:
+            
+            if G[u].get(v, {"weight":0})['weight'] <= 0:
                 print("G[u][v][weight]<=0")
-                system.exit()
-            G[u][v]["weight"]-=1
-            #Quando arco va a zero va rimosso
-            if G[u][v]["weight"]==0:
+                print ("Error: edge from", u, "to", v, "has weight", G[u].get(v, {"weight":-1})['weight'], "but should be > 0")
+                exit(1)
+
+            G[u][v]["weight"] -= 1
+            
+            if G[u][v]["weight"]==0: #Quando arco va a zero va rimosso
                 G.remove_edge(u, v)
     return path
 
@@ -149,7 +174,7 @@ def get_travel_diaries(G, partitions, uniform=True, Edge=True):
         result.append(partialsol)
     return result
 
-def check_result(G, partitions, travel_diaries):
+def check_result(G, partitions, travel_diaries, Edge=True):
     #Gprime=copy.deepcopy(G)
     Gprime = nx.DiGraph()
     for t in range(len(partitions)):
@@ -160,40 +185,58 @@ def check_result(G, partitions, travel_diaries):
             Gprime.nodes[v]["count"]=0
     for traj in travel_diaries:
         for v in traj:
-            Gprime.nodes[v]["count"]=Gprime.nodes[v]["count"]+1
-        for j in range(len(traj)-1):
-            u=traj[j]
-            v=traj[j+1]
-            if not Gprime.has_edge(u, v):
-                Gprime.add_edge(u, v, weight=0)
-            Gprime[u][v]["weight"]+=1
-    print(G.edges())
-    print(Gprime.edges())
+            Gprime.nodes[v]["count"] += 1
+        if Edge:
+            for j in range(len(traj)-1):
+                u=traj[j]
+                v=traj[j+1]
+                if not Gprime.has_edge(u, v):
+                    Gprime.add_edge(u, v, weight=0)
+                Gprime[u][v]["weight"]+=1
+    
     #check whether G and Gprime are equal
     same_nodes = set(G.nodes()) == set(Gprime.nodes())
-    same_edges = set(G.edges()) == set(Gprime.edges())
+
+    if Edge:
+        print(G.edges())
+        print(Gprime.edges())
+    
+        #check whether G and Gprime are equal
+        same_edges = set(G.edges()) == set(Gprime.edges())
+
     same_counts=True
     for n in G.nodes():
-        if G.nodes[n].get("count") != Gprime.nodes[n].get("count"):
+        if G.nodes[n].get("count", 0) != Gprime.nodes[n].get("count", 0):
+            print ("Node", n, "has count", G.nodes[n].get("count", 0), "in G and count", Gprime.nodes[n].get("count", 0), "in Gprime")
             same_counts=False
-    weights_G = nx.get_edge_attributes(G, "weight")
-    weights_Gprime = nx.get_edge_attributes(Gprime, "weight")
-    same_weights = weights_G == weights_Gprime
-    #return nx.utils.graphs_equal(G, Gprime)
-    print("same_nodes and same_edges and same_counts and same_weights", same_nodes , same_edges , same_counts , same_weights)
-    return same_nodes and same_edges and same_counts and same_weights
+            break
+    
+    if Edge:
+        weights_G = nx.get_edge_attributes(G, "weight")
+        weights_Gprime = nx.get_edge_attributes(Gprime, "weight")
+        same_weights = weights_G == weights_Gprime
+        print("same_nodes and same_edges and same_counts and same_weights", same_nodes , same_edges , same_counts , same_weights)
+        return same_nodes and same_edges and same_counts and same_weights
+    else:
+        print("same_nodes and same_counts", same_nodes, same_counts)
+        return same_nodes and same_counts
+
     
 
 # Esempio d'uso:
 if __name__ == "__main__":
-    seed=171
-    random.seed(171)
+    
+    random.seed(31)
+    
     EDGE=True
     UNIFORM=True
-    t = 3
-    n = 5
+    
+    t = 30
+    n = 50
     N = 200
-    G, parts = build_t_partite_graph(t, n, N)
+    
+    G, parts = build_t_partite_graph(t, n, N, EDGE)
+    
     if VERBOSE:
         print("nodes", G.nodes())
         print("edges", G.edges())
@@ -201,21 +244,23 @@ if __name__ == "__main__":
     for i in range(t):
         s=0
         for u in parts[i]:
-            s+=G.nodes[u]["count"]
+            s0 = G.nodes[u].get("count", 0)
+            s += s0
             if DEBUG:
-                print("Vertex", u, "with count", G.nodes[u]["count"])
+                print("Vertex", u, "with count", s0)
         if DEBUG:
             print(f"Somma etichette dei vertici partizione {i}: {s}")
 
     # Verifica: stampiamo la somma delle etichette per ogni coppia di partizioni consecutive
-    for i in range(t - 1):
-        s = 0
-        for u in parts[i]:
-            for v in parts[i + 1]:
-                s += G[u][v]['weight']
-                if DEBUG:
-                    print("edge from", u, "to", v ,"with label", G[u][v]['weight'])
-        if DEBUG:
+    if EDGE and DEBUG:
+        for i in range(t - 1):
+            s = 0
+            for u in parts[i]:
+                for v in parts[i + 1]:
+                    w = G[u].get(v, {'weight': 0})['weight']
+                    s += w
+                    print("edge from", u, "to", v ,"with label", w)
+            
             print(f"Somma etichette tra partizione {i} e {i+1}: {s}")
 
     res=get_travel_diaries(G, parts, UNIFORM, EDGE)
@@ -225,7 +270,7 @@ if __name__ == "__main__":
 
     if VERBOSE:
         print("Checking correctness of travel diaries found")
-        print(check_result(G,parts,res))
+        print(check_result(G,parts,res, EDGE))
 
 #    count=0
 #    while True:
