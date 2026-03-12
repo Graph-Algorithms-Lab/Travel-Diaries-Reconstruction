@@ -10,19 +10,18 @@ GO_BACK_HOME=True
 
 def build_t_partite_graph_from_od_matrix(file_path, Edge = True):
 
-    rows, locations, V, Vinv = parse_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv')
+    rows, locations, V, Vinv = parse_od_matrix(file_path)
 
     G = nx.DiGraph()
 
     def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x))
-    def M(x): return ((get_time_window(x), get_source_id_norm(x)), (get_time_window(x) + 1, get_destination_id_norm(x)), get_weight(x))
+    def M(x): return (get_time_window(x), get_source_id(x)), (get_time_window(x) + 1, get_destination_id(x)), get_weight(x)
 
-    partitions_dict = {}
+    max_time_window = 0
 
     for ((start_time, start_node), (dest_time, dest_node), weight) in map(M, filter(F, rows)):
 
-        if start_time not in partitions_dict: partitions_dict[start_time] = []
-        if dest_time not in partitions_dict: partitions_dict[dest_time] = []
+        max_time_window = max(max_time_window, start_time, dest_time)
 
         # new_nodes[orig_nodes[start_node]] = start_node
         # new_nodes[orig_nodes[dest_node]] = dest_node
@@ -30,10 +29,10 @@ def build_t_partite_graph_from_od_matrix(file_path, Edge = True):
         # G.add_node(start_node_new, part=start_node_new[0], idx=start_node_new[1])
 
     partitions = []
-
-    for i in range(len(partitions_dict)):
+    
+    for i in range(max_time_window + 1):
         
-        part = partitions_dict[i]
+        part = []
         
         for j in range(len(V)):
             node = i, j
@@ -272,7 +271,7 @@ if __name__ == "__main__":
     n = 50
     N = 200
     
-    G, parts = build_t_partite_graph(t, n, N, EDGE)
+    G, parts = build_t_partite_graph_from_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv', EDGE)
     
     if VERBOSE:
         print("nodes", G.nodes())

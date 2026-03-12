@@ -7,9 +7,9 @@ import csv
 SOURCE_ZONE_KEY = 'ZONA_ORIGINE'
 DESTINATION_ZONE_KEY = 'ZONA_DESTINAZIONE'
 SOURCE_ID_KEY = 'COD_ORIGINE'
-SOURCE_ID_NORM_KEY = SOURCE_ID_KEY + 'NORM'
+SOURCE_ID_NORM_KEY = SOURCE_ID_KEY + '_NORM'
 DESTINATION_ID_KEY = 'COD_DESTINAZIONE'
-DESTINATION_ID_NORM_KEY = DESTINATION_ID_KEY + 'NORM'
+DESTINATION_ID_NORM_KEY = DESTINATION_ID_KEY + '_NORM'
 WEEKDAY_KEY = 'GIORNO_SETTIMANA_ID'
 RECURRENT_KEY = 'SISTEMATICITA_ID'
 TIME_WINDOW_KEY = 'FASCIA_ORARIA_MACRO_ID'
@@ -44,13 +44,17 @@ def parse_od_matrix(file_path):
 
             n = get_source_id(row)
             if n not in count: 
-                row[SOURCE_ID_NORM_KEY] = count[n] = len(count)
+                c = len(count)
+                # row[SOURCE_ID_NORM_KEY] = c
+                count[n] = c
                 V.append(n)
                 locations[n] = get_source_zone(row)
 
             n = get_destination_id(row)
             if n not in count:
-                row[DESTINATION_ID_NORM_KEY] = count[n] = len(count)
+                c = len(count)
+                # row[DESTINATION_ID_NORM_KEY] = c
+                count[n] = c
                 V.append(n)
                 locations[n] = get_destination_zone(row)
 
