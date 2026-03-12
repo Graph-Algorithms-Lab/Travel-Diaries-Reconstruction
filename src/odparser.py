@@ -54,7 +54,7 @@ def parse_od_matrix(file_path):
                 V.append(n)
                 locations[n] = get_destination_zone(row)
 
-    return rows, locations, count, V
+    return rows, locations, V, count
 
 # rows, locations = parse_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv')
 
