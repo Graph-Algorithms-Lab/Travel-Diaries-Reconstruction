@@ -1,11 +1,52 @@
 import networkx as nx
 import random
 import copy
+from odparser import *
 
 VERBOSE=True
 DEBUG=True
 TRACE=True
 GO_BACK_HOME=True
+
+def build_t_partite_graph_from_od_matrix(file_path, Edge = True):
+
+    rows, locations = parse_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv')
+
+    G = nx.DiGraph()
+    partitions = []
+
+    def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x))
+    def M(x): return ((get_time_window(x), get_source_id(x)), (get_time_window(x) + 1, get_destination_id(x)), get_weight(x))
+
+    orig_nodes = {}
+    new_nodes = []
+    partitions_dict = {}
+
+    for ((start_time, start_node), (dest_time, dest_node), weight) in map(M, filter(F, rows)):
+
+        if start_time not in partitions_dict: partitions_dict[start_time] = []
+        if dest_time not in partitions_dict: partitions_dict[dest_time] = []
+
+        if start_node not in orig_nodes:
+            orig_nodes[start_node] = len(orig_nodes)
+            new_nodes.append(start_node)
+
+        if dest_node not in orig_nodes: 
+            orig_nodes[dest_node] = len(orig_nodes)
+            new_nodes.append(dest_node)
+
+        # new_nodes[orig_nodes[start_node]] = start_node
+        # new_nodes[orig_nodes[dest_node]] = dest_node
+
+        # G.add_node(start_node_new, part=start_node_new[0], idx=start_node_new[1])
+
+    for i, part in partitions_dict.items():
+        for j in range(new_nodes):
+            node = i, orig_nodes[j]
+            part.append(node)
+        partitions.append(part)
+
+    return G, partitions
 
 def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
     """
