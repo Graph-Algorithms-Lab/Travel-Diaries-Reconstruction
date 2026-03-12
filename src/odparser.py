@@ -7,7 +7,9 @@ import csv
 SOURCE_ZONE_KEY = 'ZONA_ORIGINE'
 DESTINATION_ZONE_KEY = 'ZONA_DESTINAZIONE'
 SOURCE_ID_KEY = 'COD_ORIGINE'
+SOURCE_ID_NORM_KEY = SOURCE_ID_KEY + 'NORM'
 DESTINATION_ID_KEY = 'COD_DESTINAZIONE'
+DESTINATION_ID_NORM_KEY = DESTINATION_ID_KEY + 'NORM'
 WEEKDAY_KEY = 'GIORNO_SETTIMANA_ID'
 RECURRENT_KEY = 'SISTEMATICITA_ID'
 TIME_WINDOW_KEY = 'FASCIA_ORARIA_MACRO_ID'
@@ -21,23 +23,38 @@ def get_time_window(row): return int(row[TIME_WINDOW_KEY])
 def get_source_zone(row): return row[SOURCE_ZONE_KEY]
 def get_destination_zone(row): return row[DESTINATION_ZONE_KEY]
 def get_source_id(row): return int(row[SOURCE_ID_KEY])
+def get_source_id_norm(row): return row[SOURCE_ID_NORM_KEY]
 def get_destination_id(row): return int(row[DESTINATION_ID_KEY])
+def get_destination_id_norm(row): return row[DESTINATION_ID_NORM_KEY]
 def get_weight(row): return int(row[WEIGHT_KEY])
 
 def parse_od_matrix(file_path):
 
+    count = {}
+    V = []
     locations = {}
     rows = []
 
     with open(file_path, newline='') as csvfile:
-        spamreader = csv.DictReader(csvfile, delimiter=';')
-        for row in spamreader:
-            # print(', '.join(row))
-            rows.append(row)
-            locations[get_source_id(row)] = get_source_zone(row)
-            locations[get_destination_id(row)] = get_destination_zone(row)
 
-    return rows, locations
+        spamreader = csv.DictReader(csvfile, delimiter=';')
+
+        for row in spamreader:
+            rows.append(row)
+
+            n = get_source_id(row)
+            if n not in count: 
+                row[SOURCE_ID_NORM_KEY] = count[n] = len(count)
+                V.append(n)
+                locations[n] = get_source_zone(row)
+
+            n = get_destination_id(row)
+            if n not in count:
+                row[DESTINATION_ID_NORM_KEY] = count[n] = len(count)
+                V.append(n)
+                locations[n] = get_destination_zone(row)
+
+    return rows, locations, count, V
 
 # rows, locations = parse_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv')
 
