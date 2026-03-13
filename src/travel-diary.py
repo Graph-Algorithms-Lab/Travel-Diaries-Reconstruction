@@ -3,43 +3,60 @@ import random
 import copy
 from odparser import *
 
-VERBOSE=True
-DEBUG=True
-TRACE=True
-GO_BACK_HOME=True
+VERBOSE=False
+DEBUG=False
+TRACE=False
+GO_BACK_HOME=False
 
-def build_t_partite_graph_from_od_matrix(file_path, Edge = True):
+def build_t_partite_graph_from_od_matrix(t, file_path, Edge = True):
 
     rows, locations, V, Vinv = parse_od_matrix(file_path)
 
     G = nx.DiGraph()
 
     def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x))
-    def M(x): return (get_time_window(x), get_source_id(x)), (get_time_window(x) + 1, get_destination_id(x)), get_weight(x)
-
-    max_time_window = 0
-
-    for ((start_time, start_node), (dest_time, dest_node), weight) in map(M, filter(F, rows)):
-
-        max_time_window = max(max_time_window, start_time, dest_time)
-
-        # new_nodes[orig_nodes[start_node]] = start_node
-        # new_nodes[orig_nodes[dest_node]] = dest_node
-
-        # G.add_node(start_node_new, part=start_node_new[0], idx=start_node_new[1])
+    def M(x): return (get_time_window(x) - 1, Vinv[get_source_id(x)]), (get_time_window(x), Vinv[get_destination_id(x)]), get_weight(x)
 
     partitions = []
     
-    for i in range(max_time_window + 1):
+    for i in range(t):
         
         part = []
         
         for j in range(len(V)):
             node = i, j
-            # G.add_node(node, part=i, idx=j)
+            G.add_node(node, part=i, idx=j, count=0)
             part.append(node)
         
         partitions.append(part)
+
+    for u, v, weight in map(M, filter(F, rows)): G.add_edge(u, v, weight=weight)
+
+    for part in partitions:
+        for tpart_u in part:
+            
+            tpart, u = tpart_u
+
+            w_in = sum(w for _, _, w in G.in_edges(tpart_u, data='weight'))
+            w_out = sum(w for _, _, w in G.out_edges(tpart_u, data='weight'))
+
+            if tpart == 0: G.nodes[tpart_u]['count'] = w_out
+            elif tpart == t - 1: G.nodes[tpart_u]['count'] = w_in
+            else: # 0 < tpart < t - 1:
+                d = w_in - w_out
+
+                if d < 0:
+                    dd = -d
+                    for j in range(tpart):
+                        ju = j, u
+                        j1u = j + 1, u
+                        if G.has_edge(ju, j1u): G[ju][j1u]['weight'] += dd
+                        else: G.add_edge(ju, j1u, weight=dd)
+                        G.nodes[ju]['count'] += dd
+                elif d > 0: G.add_edge((tpart, u), (tpart + 1, u), weight=d)
+
+                G.nodes[tpart_u]['count'] = max(w_in, w_out)
+
 
     return G, partitions
 
@@ -267,11 +284,12 @@ if __name__ == "__main__":
     EDGE=True
     UNIFORM=True
     
-    t = 30
+    # t = 30
+    t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
     n = 50
     N = 200
     
-    G, parts = build_t_partite_graph_from_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv', EDGE)
+    G, parts = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', EDGE)
     
     if VERBOSE:
         print("nodes", G.nodes())
@@ -304,7 +322,7 @@ if __name__ == "__main__":
     if DEBUG:
         print(res)
 
-    if VERBOSE:
+    if True or VERBOSE:
         print("Checking correctness of travel diaries found")
         print(check_result(G,parts,res, EDGE))
 

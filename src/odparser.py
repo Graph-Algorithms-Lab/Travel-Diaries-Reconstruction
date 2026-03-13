@@ -15,7 +15,7 @@ RECURRENT_KEY = 'SISTEMATICITA_ID'
 TIME_WINDOW_KEY = 'FASCIA_ORARIA_MACRO_ID'
 WEIGHT_KEY = 'VIAGGI'
 
-def is_hidden(v): return v == '-1'
+def is_hidden(v): return v == '-1' or v == -1
 def is_weekday(row, weekday): return row[WEEKDAY_KEY] == str(weekday)
 def is_recurrent(row): return row[RECURRENT_KEY] == '1'
 
@@ -40,12 +40,12 @@ def parse_od_matrix(file_path):
         spamreader = csv.DictReader(csvfile, delimiter=';')
 
         for row in spamreader:
+
             rows.append(row)
 
             n = get_source_id(row)
             if n not in count: 
                 c = len(count)
-                # row[SOURCE_ID_NORM_KEY] = c
                 count[n] = c
                 V.append(n)
                 locations[n] = get_source_zone(row)
@@ -53,7 +53,6 @@ def parse_od_matrix(file_path):
             n = get_destination_id(row)
             if n not in count:
                 c = len(count)
-                # row[DESTINATION_ID_NORM_KEY] = c
                 count[n] = c
                 V.append(n)
                 locations[n] = get_destination_zone(row)
