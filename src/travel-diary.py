@@ -30,9 +30,10 @@ def build_t_partite_graph_from_od_matrix(t, file_path, Edge = True):
         
         partitions.append(part)
 
-    for u, v, weight in map(M, filter(F, rows)): G.add_edge(u, v, weight=weight)
+    for u, v, w in map(M, filter(F, rows)): G.add_edge(u, v, weight=w)
 
     for part in partitions:
+        
         for tpart_u in part:
             
             tpart, u = tpart_u
