@@ -159,16 +159,17 @@ def get_next_vertex(G, vertex, uniform ):
         print("The neighbors of vertex", vertex, "are", gneigh)
     return choose_destination(G, gneigh, uniform )
 
-def choose_destination(G, part, uniform=True):
-    candidate=[]
+def choose_destination(G, part, uniform=False):
+    candidates=[]
+    weights = []
     for v in part:
-        if G.nodes[v].get("count", 0) > 0:
-            candidate.append(v)
-    if len(candidate)==0:
-        return None
-    else:
-        return random.choice(candidate)
+        w = G.nodes[v].get("count", 0) 
+        if w > 0:
+            candidates.append(v)
+            weights.append(w)
 
+    if candidates: return random.choice(candidates) if uniform else random.choices(candidates, weights=weights)
+    
 #Edge implica Vertex
 #Vertex non implica Edge
 def get_next_travel_diary(G, partitions, uniform=True, Edge=True):
