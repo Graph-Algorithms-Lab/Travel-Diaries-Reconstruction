@@ -159,7 +159,7 @@ def get_next_vertex(G, vertex, uniform ):
         print("The neighbors of vertex", vertex, "are", gneigh)
     return choose_destination(G, gneigh, uniform )
 
-def choose_destination(G, part, uniform=False):
+def choose_destination(G, part, uniform=True):
     candidates=[]
     weights = []
     for v in part:
