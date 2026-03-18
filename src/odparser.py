@@ -1,9 +1,15 @@
 
 import csv
+import geopandas as gpd
+from shapely.geometry import Point
 
 # This file is used to parse the OD matrix and extract the relevant information for the analysis.
 
 # The OD matrix is in the form of a CSV file with the following columns:
+SOURCE_REGION_KEY = 'REGIONE_ORIGINE'
+DESTINATION_REGION_KEY = 'REGIONE_DESTINAZIONE'
+SOURCE_PROVINCE_KEY = '\ufeffPROVINCIA_ORIGINE'
+DESTINATION_PROVINCE_KEY = 'PROVINCIA_DESTINAZIONE'
 SOURCE_ZONE_KEY = 'ZONA_ORIGINE'
 DESTINATION_ZONE_KEY = 'ZONA_DESTINAZIONE'
 SOURCE_ID_KEY = 'COD_ORIGINE'
@@ -20,6 +26,8 @@ def is_weekday(row, weekday): return row[WEEKDAY_KEY] == str(weekday)
 def is_recurrent(row): return row[RECURRENT_KEY] == '1'
 
 def get_time_window(row): return int(row[TIME_WINDOW_KEY])
+def is_in_tuscany(row): return row[SOURCE_REGION_KEY] == 'Toscana' and row[DESTINATION_REGION_KEY] == 'Toscana'
+def is_in_florence(row): return row[SOURCE_PROVINCE_KEY] == 'Firenze' and row[DESTINATION_PROVINCE_KEY] == 'Firenze'
 def get_source_zone(row): return row[SOURCE_ZONE_KEY]
 def get_destination_zone(row): return row[DESTINATION_ZONE_KEY]
 def get_source_id(row): return int(row[SOURCE_ID_KEY])
@@ -28,14 +36,16 @@ def get_destination_id(row): return int(row[DESTINATION_ID_KEY])
 def get_destination_id_norm(row): return row[DESTINATION_ID_NORM_KEY]
 def get_weight(row): return int(row[WEIGHT_KEY])
 
-def parse_od_matrix(file_path):
+def parse_od_matrix(file_path, filename_gis):
 
     count = {}
     V = []
     locations = {}
     rows = []
 
-    with open(file_path, newline='') as csvfile:
+    gdf = load_gis(filename_gis)
+
+    with open(file_path, "r") as csvfile:
 
         spamreader = csv.DictReader(csvfile, delimiter=';')
 
@@ -48,16 +58,29 @@ def parse_od_matrix(file_path):
                 c = len(count)
                 count[n] = c
                 V.append(n)
-                locations[n] = get_source_zone(row)
+                locations[n] = gdf[gdf.area_id == str(n)].iloc[0]
 
             n = get_destination_id(row)
             if n not in count:
                 c = len(count)
                 count[n] = c
                 V.append(n)
-                locations[n] = get_destination_zone(row)
+                locations[n] = gdf[gdf.area_id == str(n)].iloc[0]
 
     return rows, locations, V, count
+
+def load_gis(filename):
+
+    gdf = gpd.read_file(filename)
+
+    # 2. Imposta CRS (se manca)
+    gdf = gdf.set_crs("EPSG:4326")
+
+    # (opzionale ma consigliato) lavora in metri
+    gdf = gdf.to_crs("EPSG:3857")
+
+    return gdf
+
 
 # rows, locations = parse_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv')
 

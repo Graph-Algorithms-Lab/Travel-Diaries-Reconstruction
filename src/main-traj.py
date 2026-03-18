@@ -15,8 +15,10 @@ if __name__ == "__main__":
     t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
     n = 50
     N = 200
+
+    def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x)) and is_in_florence(x)
     
-    G, parts = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', EDGE)
+    G, parts = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', F, EDGE)
     
     if VERBOSE:
         print("nodes", G.nodes())
@@ -49,7 +51,7 @@ if __name__ == "__main__":
     if DEBUG:
         print(res)
 
-    if True or VERBOSE:
+    if VERBOSE:
         print("Checking correctness of travel diaries found")
         print(check_result(G,parts,res, EDGE))
 

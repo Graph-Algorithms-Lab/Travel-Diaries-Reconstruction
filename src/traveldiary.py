@@ -8,18 +8,18 @@ DEBUG=False
 TRACE=False
 GO_BACK_HOME=False
 
-def build_t_partite_graph_from_od_matrix(t, file_path, Edge = True):
+def build_t_partite_graph_from_od_matrix(t, file_path, F, Edge = True):
 
-    rows, locations, V, Vinv = parse_od_matrix(file_path)
+    rows, locations, V, Vinv = parse_od_matrix(file_path, filename_gis="../data/gis/mavfa-fs-3000_zone.shp")
 
-    def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x))
     def M(x): return (get_time_window(x) - 1, Vinv[get_source_id(x)]), (get_time_window(x), Vinv[get_destination_id(x)]), get_weight(x)
 
     G = nx.DiGraph()
     
     discovered_nodes = set()
     for u, v, w in map(M, filter(F, rows)):
-        G.add_edge(u, v, weight=w)
+        d = locations[V[u[1]]].geometry.centroid.distance(locations[V[v[1]]].geometry.centroid)
+        G.add_edge(u, v, weight=w, distance=d)
         discovered_nodes.add(u[1])
         discovered_nodes.add(v[1])
     
@@ -34,9 +34,17 @@ def build_t_partite_graph_from_od_matrix(t, file_path, Edge = True):
 
             if node not in G.nodes: G.add_node(node)
             
-            G.nodes[node]['count'] = 0
-            G.nodes[node]['part'] = i
-            G.nodes[node]['idx'] = j
+            nn = G.nodes[node]
+            
+            centroid = locations[V[j]].geometry.centroid
+
+            nn['count'] = 0
+            nn['part'] = i
+            nn['idx'] = j
+            nn['lat'] = float(locations[V[j]].lat)
+            nn['lon'] = float(locations[V[j]].lon)
+            nn['centroid'] = centroid
+            nn['zone_name'] = locations[V[j]].zone_name
 
             part.append(node)
         
@@ -63,9 +71,9 @@ def build_t_partite_graph_from_od_matrix(t, file_path, Edge = True):
                         ju = j, u
                         j1u = j + 1, u
                         if G.has_edge(ju, j1u): G[ju][j1u]['weight'] += dd
-                        else: G.add_edge(ju, j1u, weight=dd)
+                        else: G.add_edge(ju, j1u, weight=dd, distance=0)
                         G.nodes[ju]['count'] += dd
-                elif d > 0: G.add_edge((tpart, u), (tpart + 1, u), weight=d)
+                elif d > 0: G.add_edge((tpart, u), (tpart + 1, u), weight=d, distance=0)
 
                 G.nodes[tpart_u]['count'] = max(w_in, w_out)
 
@@ -119,8 +127,7 @@ def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
                 edge=(S[-2], new_node)
                 countersEdge[edge] = countersEdge.get(edge,0) + 1
 
-        if TRACE:
-            print("Generated trajectory", S)
+        if TRACE: print("Generated trajectory", S)
 
         allTraj.append(S)
 
