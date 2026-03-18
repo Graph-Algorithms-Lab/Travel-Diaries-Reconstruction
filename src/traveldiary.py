@@ -12,25 +12,36 @@ def build_t_partite_graph_from_od_matrix(t, file_path, Edge = True):
 
     rows, locations, V, Vinv = parse_od_matrix(file_path)
 
-    G = nx.DiGraph()
-
     def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x))
     def M(x): return (get_time_window(x) - 1, Vinv[get_source_id(x)]), (get_time_window(x), Vinv[get_destination_id(x)]), get_weight(x)
 
-    partitions = []
+    G = nx.DiGraph()
     
+    discovered_nodes = set()
+    for u, v, w in map(M, filter(F, rows)):
+        G.add_edge(u, v, weight=w)
+        discovered_nodes.add(u[1])
+        discovered_nodes.add(v[1])
+    
+    partitions = []
     for i in range(t):
         
         part = []
         
-        for j in range(len(V)):
+        for j in sorted(discovered_nodes):
+
             node = i, j
-            G.add_node(node, part=i, idx=j, count=0)
+
+            if node not in G.nodes: G.add_node(node)
+            
+            G.nodes[node]['count'] = 0
+            G.nodes[node]['part'] = i
+            G.nodes[node]['idx'] = j
+
             part.append(node)
         
         partitions.append(part)
-
-    for u, v, w in map(M, filter(F, rows)): G.add_edge(u, v, weight=w)
+    
 
     for part in partitions:
         
@@ -275,80 +286,3 @@ def check_result(G, partitions, travel_diaries, Edge=True):
     else:
         print("same_nodes and same_counts", same_nodes, same_counts)
         return same_nodes and same_counts
-
-    
-
-# Esempio d'uso:
-if __name__ == "__main__":
-    
-    random.seed(31)
-    
-    EDGE=True
-    UNIFORM=True
-    
-    # t = 30
-    t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
-    n = 50
-    N = 200
-    
-    G, parts = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', EDGE)
-    
-    if VERBOSE:
-        print("nodes", G.nodes())
-        print("edges", G.edges())
-
-    for i in range(t):
-        s=0
-        for u in parts[i]:
-            s0 = G.nodes[u].get("count", 0)
-            s += s0
-            if DEBUG:
-                print("Vertex", u, "with count", s0)
-        if DEBUG:
-            print(f"Somma etichette dei vertici partizione {i}: {s}")
-
-    # Verifica: stampiamo la somma delle etichette per ogni coppia di partizioni consecutive
-    if EDGE and DEBUG:
-        for i in range(t - 1):
-            s = 0
-            for u in parts[i]:
-                for v in parts[i + 1]:
-                    w = G[u].get(v, {'weight': 0})['weight']
-                    s += w
-                    print("edge from", u, "to", v ,"with label", w)
-            
-            print(f"Somma etichette tra partizione {i} e {i+1}: {s}")
-
-    res=get_travel_diaries(G, parts, UNIFORM, EDGE)
-    print("Found", len(res), "travel diaries")
-    if DEBUG:
-        print(res)
-
-    if True or VERBOSE:
-        print("Checking correctness of travel diaries found")
-        print(check_result(G,parts,res, EDGE))
-
-#    count=0
-#    while True:
-#        count+=1
-#        path=get_next_travel_diary(G, parts)
-#        if path==None:
-#            break
-#        print(path)
-#        for edge in path:
-#            u=edge[0]
-#            v=edge[1]
-#            G[u][v]['label']-=1
-#            if G[u][v]['label']==0:
-#                G.remove_edge(u,v)
-#    print("count", count)
-#    residualEdges=G.edges()
-#    print(residualEdges)
-
-#TODO genera istanze dove per ogni nodo indegree(v)==outdegree(v) 
-#per ogni nodo v nelle partizioni intermedie
-#TODO far tornare a casa
-#TODO genera primo nodo non a caso ma prop a  grado pesato
-#TODO genera prossimo arco prop ai pesi
-
-
