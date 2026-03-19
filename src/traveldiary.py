@@ -22,13 +22,15 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F, Edge = True):
         G.add_edge(u, v, weight=w, distance=d)
         discovered_nodes.add(u[1])
         discovered_nodes.add(v[1])
+
+    discovered_nodes = list(sorted(discovered_nodes))
     
     partitions = []
     for i in range(t):
         
         part = []
         
-        for j in sorted(discovered_nodes):
+        for j in discovered_nodes:
 
             node = i, j
 
@@ -77,7 +79,19 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F, Edge = True):
 
                 G.nodes[tpart_u]['count'] = max(w_in, w_out)
 
+    c = 0
+    for v in discovered_nodes:
 
+        count_start = G.nodes[(0, v)]['count']
+        count_end = G.nodes[(t-1, v)]['count']
+
+        d = abs(count_start - count_end) / max(count_start, count_end)
+
+        if d > 0.1:
+            c += 1
+            print(f"Warning: node {v} ({locations[V[v]]['zone_name']}) has count {count_start} in partition 0 and count {count_end} in partition {t-1}, with relative difference {d:.2%}")
+
+    print(len(discovered_nodes), "nodes discovered in the OD matrix, with", c, "nodes having a relative difference in count greater than 1% between partition 0 and partition", t-1)
     return G, partitions
 
 def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
