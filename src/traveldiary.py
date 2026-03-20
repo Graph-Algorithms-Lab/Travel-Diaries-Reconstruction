@@ -12,7 +12,17 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F, Edge = True):
 
     rows, locations, V, Vinv = parse_od_matrix(file_path, filename_gis="../data/gis/mavfa-fs-3000_zone.shp")
 
-    def M(x): return (get_time_window(x) - 1, Vinv[get_source_id(x)]), (get_time_window(x), Vinv[get_destination_id(x)]), get_weight(x)
+    def M(x):
+        """
+        Dato un record x del file csv, restituisce una tupla (u, v, w) dove:
+        - u è il nodo di partenza, rappresentato come una tupla (time_window, source_id)
+        - v è il nodo di arrivo, rappresentato come una tupla (time_window, destination_id)
+        - w è il peso dell'arco, rappresentato come un intero che indica il numero di spostamenti da u a v nella time_window corrispondente.
+        """
+        u = get_time_window(x) - 1, Vinv[get_source_id(x)]
+        v = get_time_window(x), Vinv[get_destination_id(x)]
+        w = get_weight(x)
+        return u, v, w
 
     G = nx.DiGraph()
     
@@ -79,20 +89,23 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F, Edge = True):
 
                 G.nodes[tpart_u]['count'] = max(w_in, w_out)
 
-    c = 0
-    for v in discovered_nodes:
+    if VERBOSE:
 
-        count_start = G.nodes[(0, v)]['count']
-        count_end = G.nodes[(t-1, v)]['count']
+        c = 0
+        for v in discovered_nodes:
 
-        d = abs(count_start - count_end) / max(count_start, count_end)
+            count_start = G.nodes[(0, v)]['count']
+            count_end = G.nodes[(t-1, v)]['count']
 
-        if d > 0.1:
-            c += 1
-            print(f"Warning: node {v} ({locations[V[v]]['zone_name']}) has count {count_start} in partition 0 and count {count_end} in partition {t-1}, with relative difference {d:.2%}")
+            d = abs(count_start - count_end) / max(count_start, count_end)
 
-    print(len(discovered_nodes), "nodes discovered in the OD matrix, with", c, "nodes having a relative difference in count greater than 1% between partition 0 and partition", t-1)
-    return G, partitions
+            if d > 0.1:
+                c += 1
+                print(f"Warning: node {v} ({locations[V[v]]['zone_name']}) has count {count_start} in partition 0 and count {count_end} in partition {t-1}, with relative difference {d:.2%}")
+
+        print(len(discovered_nodes), "nodes discovered in the OD matrix, with", c, "nodes having a relative difference in count greater than 1% between partition 0 and partition", t-1)
+
+    return G, partitions, locations, V, Vinv
 
 def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
     """
@@ -175,8 +188,7 @@ def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
 def get_degree_distr(G, list):
     #the degree of a node is the sum of the labels of its incoming edges
     dict={}
-    for u in list:
-        dict[u]=G.out_degree(u)#questo dovrebbe essere grado pesato
+    for u in list: dict[u]=G.out_degree(u)#questo dovrebbe essere grado pesato
     return dict
 
 
@@ -185,81 +197,90 @@ def get_node_prop_to_its_degree(degree_dist):
     ind=int(random.random()*len(nodes))
     return nodes[ind]
 
-def get_next_vertex(G, vertex, uniform ):
-    gneigh=list(G.successors(vertex))
-    if TRACE:
-        print("The neighbors of vertex", vertex, "are", gneigh)
-    return choose_destination(G, gneigh, uniform )
+def get_next_vertex(G, vertex, uniform, weighted):
+    return choose_destination(G, vertex, G.successors(vertex), uniform, weighted={'vertex': False, 'edge': False, 'distance': False})
 
-def choose_destination(G, part, uniform=True):
+def choose_destination(G, source, part, uniform, weighted):
     candidates=[]
     weights = []
     for v in part:
-        w = G.nodes[v].get("count", 0) 
+
+        # w = 0
+
+        # if weighted.get('vertex', False): w += G.nodes[v].get("count", 0)
+        # if weighted.get('edge', False) and source: w += G.edges[source, v]['weight']
+        # if weighted.get('distance', False) and source: w += G.edges[source, v]['distance']
+
+        w = G.nodes[v].get("count", 0) if weighted == 'vertex' or not source else G.edges[source, v]['weight']
         if w > 0:
             candidates.append(v)
             weights.append(w)
 
     if candidates: return random.choice(candidates) if uniform else random.choices(candidates, weights=weights)
     
-#Edge implica Vertex
-#Vertex non implica Edge
-def get_next_travel_diary(G, partitions, uniform=True, Edge=True):
-    #dict=get_degree_distr(G, partitions[0])
-    #u=get_node_prop_to_its_degree(dict)
+#Edge implica Vertex, Vertex non implica Edge
+def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted):
+    
     if uniform:
-        u=choose_destination(G, partitions[0], uniform)
-        if u==None:
-            return None
-    path=[u]
+        u = choose_destination(G, None, partitions[0], uniform, weighted)
+        if not u: return None
+    
+    path = [u]
+    
     for i in range(len(partitions)-1): 
         
         if i == len(partitions)-2 and GO_BACK_HOME:
             v = i + 1, path[0][1]
         else:
-            v = get_next_vertex(G, u, uniform)
+            v = get_next_vertex(G, u, uniform, weighted)
         
         if v==None:
             break
         
-        if TRACE:
-            print("next vertex", v)
+        if TRACE: print("next vertex", v)
+
         path.append(v)
         u=v
-    if DEBUG:
-        print("Found a path ", path)
-    #Aggiorniamo per vertice 
-    for u in path:
-        if G.nodes[u]["count"]<=0:
-            print("G.nodes[u][count]<=0")
-            exit(1)
-        G.nodes[u]["count"]-=1
-    #Aggiorniamo gli archi
-    if Edge:
-        for i in range(len(path)-1):
-            u=path[i]
-            v=path[i+1]
-            
-            if G[u].get(v, {"weight":0})['weight'] <= 0:
-                print("G[u][v][weight]<=0")
-                print ("Error: edge from", u, "to", v, "has weight", G[u].get(v, {"weight":-1})['weight'], "but should be > 0")
-                exit(1)
 
-            G[u][v]["weight"] -= 1
-            
-            if G[u][v]["weight"]==0: #Quando arco va a zero va rimosso
-                G.remove_edge(u, v)
+    if DEBUG: print("Found a path ", path)
+
+    if exact: 
+        
+        #Aggiorniamo per vertice
+        for u in path:
+
+            assert G.nodes[u].get("count", 0) > 0, f"Error: node {u} has count {G.nodes[u].get('count', 0)} but should be > 0"
+            G.nodes[u]["count"]-=1
+
+        #Aggiorniamo gli archi
+        if edge:
+            for i in range(len(path)-1):
+                u=path[i]
+                v=path[i+1]
+                
+                if G[u].get(v, {"weight":0})['weight'] <= 0:
+                    print("G[u][v][weight]<=0")
+                    print ("Error: edge from", u, "to", v, "has weight", G[u].get(v, {"weight":-1})['weight'], "but should be > 0")
+                    exit(1)
+
+                G[u][v]["weight"] -= 1
+                
+                if G[u][v]["weight"]==0: #Quando arco va a zero va rimosso
+                    G.remove_edge(u, v)
+
     return path
 
-def get_travel_diaries(G, partitions, uniform=True, Edge=True):
-    result=[]
-    copyG=copy.deepcopy(G)
+def get_travel_diaries(G, partitions, uniform=True, edge=True, exact=True, weighted='vertex'):
+    
+    copyG = copy.deepcopy(G)
+    
     while True:
-        partialsol=get_next_travel_diary(copyG, partitions, uniform, Edge)
-        if partialsol==None:
-            break
-        result.append(partialsol)
-    return result
+
+        partialsol = get_next_travel_diary(copyG, partitions, uniform, edge, exact, weighted)
+
+        if not partialsol: break
+
+        yield partialsol
 
 def check_result(G, partitions, travel_diaries, Edge=True):
     #Gprime=copy.deepcopy(G)

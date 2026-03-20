@@ -8,6 +8,7 @@ if __name__ == "__main__":
     
     random.seed(31)
     
+    EXACT=False
     EDGE=True
     UNIFORM=True
     
@@ -18,7 +19,7 @@ if __name__ == "__main__":
 
     def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x)) and is_in_florence(x)
     
-    G, parts = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', F, EDGE)
+    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', F, EDGE)
     
     if VERBOSE:
         print("nodes", G.nodes())
@@ -46,10 +47,16 @@ if __name__ == "__main__":
             
             print(f"Somma etichette tra partizione {i} e {i+1}: {s}")
 
-    res=get_travel_diaries(G, parts, UNIFORM, EDGE)
+    sol_iterable = get_travel_diaries(G, parts, UNIFORM, EDGE, EXACT)
+
+    # res = list(sol_iterable)
+    res = [next(sol_iterable) for _ in range(10)]
+
     print("Found", len(res), "travel diaries")
-    if DEBUG:
-        print(res)
+
+    if True or DEBUG:
+        for diary in res:
+            print([locations[V[u]].zone_name for (t, u) in diary])
 
     if VERBOSE:
         print("Checking correctness of travel diaries found")
