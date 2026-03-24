@@ -8,7 +8,7 @@ DEBUG=False
 TRACE=False
 GO_BACK_HOME=False
 
-def build_t_partite_graph_from_od_matrix(t, file_path, F, Edge = True):
+def build_t_partite_graph_from_od_matrix(t, file_path, F):
 
     rows, locations, V, Vinv = parse_od_matrix(file_path, filename_gis="../data/gis/mavfa-fs-3000_zone.shp")
 
@@ -198,7 +198,7 @@ def get_node_prop_to_its_degree(degree_dist):
     return nodes[ind]
 
 def get_next_vertex(G, vertex, uniform, weighted):
-    return choose_destination(G, vertex, G.successors(vertex), uniform, weighted={'vertex': False, 'edge': False, 'distance': False})
+    return choose_destination(G, vertex, G.successors(vertex), uniform, weighted)
 
 def choose_destination(G, source, part, uniform, weighted):
     candidates=[]
@@ -216,14 +216,14 @@ def choose_destination(G, source, part, uniform, weighted):
             candidates.append(v)
             weights.append(w)
 
-    if candidates: return random.choice(candidates) if uniform else random.choices(candidates, weights=weights)
+    if candidates: return random.choice(candidates) if uniform else random.choices(candidates, weights=weights)[0]
     
 #Edge implica Vertex, Vertex non implica Edge
 def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted):
     
-    if uniform:
-        u = choose_destination(G, None, partitions[0], uniform, weighted)
-        if not u: return None
+    u = choose_destination(G, None, partitions[0], uniform, weighted)
+    
+    if not u: return None
     
     path = [u]
     

@@ -10,7 +10,7 @@ if __name__ == "__main__":
     
     EXACT=False
     EDGE=True
-    UNIFORM=True
+    UNIFORM=False
     
     # t = 30
     t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x)) and is_in_florence(x)
     
-    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', F, EDGE)
+    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', F)
     
     if VERBOSE:
         print("nodes", G.nodes())
@@ -30,10 +30,8 @@ if __name__ == "__main__":
         for u in parts[i]:
             s0 = G.nodes[u].get("count", 0)
             s += s0
-            if DEBUG:
-                print("Vertex", u, "with count", s0)
-        if DEBUG:
-            print(f"Somma etichette dei vertici partizione {i}: {s}")
+            if DEBUG: print("Vertex", u, "with count", s0)
+        if DEBUG: print(f"Somma etichette dei vertici partizione {i}: {s}")
 
     # Verifica: stampiamo la somma delle etichette per ogni coppia di partizioni consecutive
     if EDGE and DEBUG:
