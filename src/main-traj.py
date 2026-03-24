@@ -1,7 +1,20 @@
 import networkx as nx
 import random
 from odparser import *
+from censoparser import *
 from traveldiary import *
+
+
+# 4. Funzione per punto casuale
+def random_point_in_polygon(polygon):
+    minx, miny, maxx, maxy = polygon.bounds
+    
+    while True:
+        x = random.uniform(minx, maxx)
+        y = random.uniform(miny, maxy)
+        p = Point(x, y)
+        if polygon.contains(p):
+            return p
 
 # Esempio d'uso:
 if __name__ == "__main__":
@@ -48,13 +61,37 @@ if __name__ == "__main__":
     sol_iterable = get_travel_diaries(G, parts, UNIFORM, EDGE, EXACT)
 
     # res = list(sol_iterable)
-    res = [next(sol_iterable) for _ in range(10)]
+    res = [next(sol_iterable) for _ in range(1)]
 
     print("Found", len(res), "travel diaries")
 
     if True or DEBUG:
         for diary in res:
             print([locations[V[u]].zone_name for (t, u) in diary])
+
+    # let's try to join censo data for the diaries found.
+    rows, legend, sections = parse_censo( '../data/censo/censo-2021.csv', 
+                                '../data/censo/censo-legenda.csv', 
+                                '../data/zonizzazione/Sez censimento Toscana_riparate.shp')
+
+    special = {}
+    special['Rifredi'] = 'Firenze'
+    special['Campo di Marte'] = 'Firenze'
+    special['Firenze Centro Storico'] = 'Firenze'
+
+    age_codes = list(map(lambda x: 'P' + str(x), list(range(30, 46)) + list(range(67, 83))))
+
+    for diary in res:
+        origin = diary[0]
+        origin_location = locations[V[origin[1]]].zone_name
+        filtered_rows = list(filter(lambda x: x['COMUNE'] == special[origin_location] if origin_location in special else x['COMUNE'] == origin_location, rows))
+        weights = list(map(lambda x: int(x['P1']), filtered_rows))
+        choosen = random.choices(filtered_rows, weights=weights, k=1)[0]
+        age_weights = list(map(lambda age_code: int(choosen[age_code]), age_codes))
+        age_code_choosen = random.choices(age_codes, weights=age_weights, k=1)[0]
+        point = random_point_in_polygon(sections[choosen['SEZIONE CENSIMENTO']].geometry)
+        print(f"Origin {origin_location} choosen {choosen['COMUNE']} age_code {age_code_choosen} age {legend[age_code_choosen]}")
+        print(f"Choosen point {point} for its home.")
 
     if VERBOSE:
         print("Checking correctness of travel diaries found")

@@ -1,17 +1,31 @@
 
 import csv
+import geopandas as gpd
+
+def load_gis(filename):
+
+    gdf = gpd.read_file(filename)
+
+    # (opzionale ma consigliato) lavora in metri
+    gdf = gdf.to_crs("EPSG:3857")
+
+    return gdf
 
 
-def parse_censo(file_path, legend_filename):
+def parse_censo(file_path, legend_filename, gis_filename):
+
+    gdf = load_gis(gis_filename)
 
     rows = []
+    sections = {}
     
     with open(file_path, "r") as csvfile:
 
         spamreader = csv.DictReader(csvfile, delimiter=',')
 
         for row in spamreader:
-            
+            sez = row['SEZIONE CENSIMENTO']
+            sections[sez] = gdf[gdf['SEZ21_ID'] == int(sez)].iloc[0]
             rows.append(row)
 
     legend = {}
@@ -24,12 +38,12 @@ def parse_censo(file_path, legend_filename):
             
             legend[row['NOME_CAMPO']] = row['DEFINIZIONE']
 
-    return rows, legend
+    return rows, legend, sections
 
 
-rows, legend = parse_censo('../data/censo/censo-2021-grouped.csv', '../data/censo/censo-legenda.csv')
+# rows, legend = parse_censo('../data/censo/censo-2021-grouped.csv', '../data/censo/censo-legenda.csv')
 
-print(rows[0])
+# print(rows[0])
 # print(legend)
 
 # import pandas as pd
