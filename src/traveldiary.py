@@ -13,12 +13,6 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F):
     rows, locations, V, Vinv = parse_od_matrix(file_path, filename_gis="../data/gis/mavfa-fs-3000_zone.shp")
 
     def M(x):
-        """
-        Dato un record x del file csv, restituisce una tupla (u, v, w) dove:
-        - u è il nodo di partenza, rappresentato come una tupla (time_window, source_id)
-        - v è il nodo di arrivo, rappresentato come una tupla (time_window, destination_id)
-        - w è il peso dell'arco, rappresentato come un intero che indica il numero di spostamenti da u a v nella time_window corrispondente.
-        """
         u = get_time_window(x) - 1, Vinv[get_source_id(x)]
         v = get_time_window(x), Vinv[get_destination_id(x)]
         w = get_weight(x)
@@ -27,6 +21,7 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F):
     G = nx.DiGraph()
     
     discovered_nodes = set()
+
     for u, v, w in map(M, filter(F, rows)):
         d = locations[V[u[1]]].geometry.centroid.distance(locations[V[v[1]]].geometry.centroid)
         G.add_edge(u, v, weight=w, distance=d)
@@ -36,6 +31,7 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F):
     discovered_nodes = list(sorted(discovered_nodes))
     
     partitions = []
+    
     for i in range(t):
         
         part = []
@@ -62,7 +58,6 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F):
         
         partitions.append(part)
     
-
     for part in partitions:
         
         for tpart_u in part:
@@ -185,34 +180,28 @@ def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
     
     return G, partitions
 
-def get_degree_distr(G, list):
-    #the degree of a node is the sum of the labels of its incoming edges
-    dict={}
-    for u in list: dict[u]=G.out_degree(u)#questo dovrebbe essere grado pesato
-    return dict
-
-
-def get_node_prop_to_its_degree(degree_dist):
-    nodes=list(degree_dist.keys())#TODO da cambiare
-    ind=int(random.random()*len(nodes))
-    return nodes[ind]
-
-def get_next_vertex(G, vertex, uniform, weighted):
-    return choose_destination(G, vertex, G.successors(vertex), uniform, weighted)
+def get_next_vertex(G, vertex, uniform, weighted): 
+    return choose_destination(G, vertex, list(G.successors(vertex)), uniform, weighted)
 
 def choose_destination(G, source, part, uniform, weighted):
-    candidates=[]
-    weights = []
+
+    sum_count = sum(G.nodes[v].get("count", 0) for v in part) if weighted.get('vertex', False) else 0
+    sum_weight = sum(G.edges[source, v]['weight'] for v in part if G.has_edge(source, v)) if weighted.get('edge', False) and source else 0
+    sum_distance = sum(1 / (G.edges[source, v]['distance'] or 1) for v in part if G.has_edge(source, v)) if weighted.get('distance', False) and source else 0
+
+    candidates, weights = [], []
+    
     for v in part:
 
-        # w = 0
+        w = 0
+       
+        w += (G.nodes[v].get("count", 0) / sum_count) * weighted.get('vertex', 0)
 
-        # if weighted.get('vertex', False): w += G.nodes[v].get("count", 0)
-        # if weighted.get('edge', False) and source: w += G.edges[source, v]['weight']
-        # if weighted.get('distance', False) and source: w += G.edges[source, v]['distance']
+        if source: w += (G.edges[source, v]['weight'] / sum_weight) * weighted.get('edge', 0)
 
-        w = G.nodes[v].get("count", 0) if weighted == 'vertex' or not source else G.edges[source, v]['weight']
-        if w > 0:
+        if source: w += ((1 / (G.edges[source, v]['distance'] or 1)) / sum_distance) * weighted.get('distance', 0)
+
+        if G.nodes[v].get("count", 0) > 0:
             candidates.append(v)
             weights.append(w)
 
@@ -229,18 +218,14 @@ def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted):
     
     for i in range(len(partitions)-1): 
         
-        if i == len(partitions)-2 and GO_BACK_HOME:
-            v = i + 1, path[0][1]
-        else:
-            v = get_next_vertex(G, u, uniform, weighted)
+        v = (i + 1, path[0][1]) if i == len(partitions)-2 and GO_BACK_HOME else get_next_vertex(G, u, uniform, weighted)
         
-        if v==None:
-            break
+        if v == None: break
         
         if TRACE: print("next vertex", v)
 
         path.append(v)
-        u=v
+        u = v
 
     if DEBUG: print("Found a path ", path)
 
@@ -270,7 +255,7 @@ def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted):
 
     return path
 
-def get_travel_diaries(G, partitions, uniform=True, edge=True, exact=True, weighted='vertex'):
+def get_travel_diaries(G, partitions, uniform=True, edge=True, exact=True, weighted={'vertex': 1, 'edge': 1, 'distance': 1}):
     
     copyG = copy.deepcopy(G)
     
