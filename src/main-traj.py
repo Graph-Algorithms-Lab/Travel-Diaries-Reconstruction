@@ -24,6 +24,7 @@ if __name__ == "__main__":
     EXACT=False
     EDGE=True
     UNIFORM=False
+    GO_BACK_HOME=True
     
     # t = 30
     t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
@@ -58,14 +59,14 @@ if __name__ == "__main__":
             
             print(f"Somma etichette tra partizione {i} e {i+1}: {s}")
 
-    sol_iterable = get_travel_diaries(G, parts, UNIFORM, EDGE, EXACT)
+    sol_iterable = get_travel_diaries(G, parts, UNIFORM, EDGE, EXACT, GO_BACK_HOME)
 
     # res = list(sol_iterable)
     res = [next(sol_iterable) for _ in range(1)]
 
     print("Found", len(res), "travel diaries")
 
-    if True or DEBUG:
+    if DEBUG:
         for diary in res:
             print([locations[V[u]].zone_name for (t, u) in diary])
 
@@ -81,7 +82,12 @@ if __name__ == "__main__":
 
     age_codes = list(map(lambda x: 'P' + str(x), list(range(30, 46)) + list(range(67, 83))))
 
+    geo_travel_diaries = []
+
     for diary in res:
+
+        geo_travel_diary = []
+
         origin = diary[0]
         origin_location = locations[V[origin[1]]].zone_name
         filtered_rows = list(filter(lambda x: x['COMUNE'] == special[origin_location] if origin_location in special else x['COMUNE'] == origin_location, rows))
@@ -90,8 +96,23 @@ if __name__ == "__main__":
         age_weights = list(map(lambda age_code: int(choosen[age_code]), age_codes))
         age_code_choosen = random.choices(age_codes, weights=age_weights, k=1)[0]
         point = random_point_in_polygon(sections[choosen['SEZIONE CENSIMENTO']].geometry)
-        print(f"Origin {origin_location} choosen {choosen['COMUNE']} age_code {age_code_choosen} age {legend[age_code_choosen]}")
-        print(f"Choosen point {point} for its home.")
+        # print(f"Origin {origin_location} choosen {choosen['COMUNE']} age_code {age_code_choosen} age {legend[age_code_choosen]}")
+        # print(f"Choosen point {point} for its home.")
+
+        geo_travel_diary.append((origin_location, point))
+
+        for rest in diary[1:]:
+            loc = locations[V[rest[1]]]
+            dest_location = loc.zone_name
+            point = random_point_in_polygon(loc.geometry)
+            # print(f"Destination {dest_location} choosen point {point} for its destination.")
+            geo_travel_diary.append((dest_location, point))
+
+        if GO_BACK_HOME: geo_travel_diary[-1] = geo_travel_diary[0]
+
+        geo_travel_diaries.append(geo_travel_diary)
+    
+    print(f"Generated geo travel diaries: {geo_travel_diaries}")
 
     if VERBOSE:
         print("Checking correctness of travel diaries found")

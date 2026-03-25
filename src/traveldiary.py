@@ -6,7 +6,7 @@ from odparser import *
 VERBOSE=False
 DEBUG=False
 TRACE=False
-GO_BACK_HOME=False
+
 
 def build_t_partite_graph_from_od_matrix(t, file_path, F):
 
@@ -102,7 +102,7 @@ def build_t_partite_graph_from_od_matrix(t, file_path, F):
 
     return G, partitions, locations, V, Vinv
 
-def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
+def build_t_partite_graph(t: int, n: int, N: int, Edge = True, go_back_home=False):
     """
     Costruisce un grafo t-partito con t partizioni di n vertici ciascuna.
     Tra la partizione i ed i+1 il grafo è completo (K_{n,n}).
@@ -140,7 +140,7 @@ def build_t_partite_graph(t: int, n: int, N: int, Edge = True):
 
             randomj=random.randint(0,n-1)
 
-            if GO_BACK_HOME and i == t-1: randomj=S[0][1]
+            if go_back_home and i == t-1: randomj=S[0][1]
 
             new_node = i, randomj
             S.append(new_node)
@@ -208,7 +208,7 @@ def choose_destination(G, source, part, uniform, weighted):
     if candidates: return random.choice(candidates) if uniform else random.choices(candidates, weights=weights)[0]
     
 #Edge implica Vertex, Vertex non implica Edge
-def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted):
+def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted, go_back_home):
     
     u = choose_destination(G, None, partitions[0], uniform, weighted)
     
@@ -218,7 +218,7 @@ def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted):
     
     for i in range(len(partitions)-1): 
         
-        v = (i + 1, path[0][1]) if i == len(partitions)-2 and GO_BACK_HOME else get_next_vertex(G, u, uniform, weighted)
+        v = (i + 1, path[0][1]) if i == len(partitions)-2 and go_back_home else get_next_vertex(G, u, uniform, weighted)
         
         if v == None: break
         
@@ -255,13 +255,14 @@ def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted):
 
     return path
 
-def get_travel_diaries(G, partitions, uniform=True, edge=True, exact=True, weighted={'vertex': 1, 'edge': 1, 'distance': 1}):
+def get_travel_diaries(G, partitions, uniform=True, edge=True, exact=True,  go_back_home=False, 
+                       weighted={'vertex': 1, 'edge': 1, 'distance': 1}):
     
     copyG = copy.deepcopy(G)
     
     while True:
 
-        partialsol = get_next_travel_diary(copyG, partitions, uniform, edge, exact, weighted)
+        partialsol = get_next_travel_diary(copyG, partitions, uniform, edge, exact, weighted, go_back_home)
 
         if not partialsol: break
 
