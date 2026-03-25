@@ -25,6 +25,8 @@ if __name__ == "__main__":
     EDGE=True
     UNIFORM=False
     GO_BACK_HOME=True
+
+    HOW_MANY_DIARIES=100
     
     # t = 30
     t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
@@ -61,24 +63,24 @@ if __name__ == "__main__":
 
     sol_iterable = get_travel_diaries(G, parts, UNIFORM, EDGE, EXACT, GO_BACK_HOME)
 
-    # res = list(sol_iterable)
-    res = [next(sol_iterable) for _ in range(1)]
+    res = list(sol_iterable) if EXACT else [next(sol_iterable) for _ in range(HOW_MANY_DIARIES)]
 
     print("Found", len(res), "travel diaries")
 
     if DEBUG:
         for diary in res:
-            print([locations[V[u]].zone_name for (t, u) in diary])
+            print([locations[V[u]].zone_name for t, u in diary])
 
     # let's try to join censo data for the diaries found.
-    rows, legend, sections = parse_censo( '../data/censo/censo-2021.csv', 
-                                '../data/censo/censo-legenda.csv', 
-                                '../data/zonizzazione/Sez censimento Toscana_riparate.shp')
+    rows, legend, sections = parse_censo( '../data/censo/censo-2021.csv', '../data/censo/censo-legenda.csv', '../data/zonizzazione/Sez censimento Toscana_riparate.shp')
 
     special = {}
     special['Rifredi'] = 'Firenze'
     special['Campo di Marte'] = 'Firenze'
     special['Firenze Centro Storico'] = 'Firenze'
+    special["Barberino Val d'Elsa"] = 'Barberino Tavarnelle'
+    special["Incisa in Val d'Arno"] = 'Figline e Incisa Valdarno'
+    special["Figline Valdarno"] = 'Figline e Incisa Valdarno'
 
     age_codes = list(map(lambda x: 'P' + str(x), list(range(30, 46)) + list(range(67, 83))))
 
@@ -90,6 +92,7 @@ if __name__ == "__main__":
 
         origin = diary[0]
         origin_location = locations[V[origin[1]]].zone_name
+        print(f"Origin location {origin_location}")
         filtered_rows = list(filter(lambda x: x['COMUNE'] == special[origin_location] if origin_location in special else x['COMUNE'] == origin_location, rows))
         weights = list(map(lambda x: int(x['P1']), filtered_rows))
         choosen = random.choices(filtered_rows, weights=weights, k=1)[0]

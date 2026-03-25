@@ -1,6 +1,7 @@
 
 import csv
 import geopandas as gpd
+import pandas as pd
 
 def load_gis(filename):
 
@@ -21,7 +22,8 @@ def parse_censo(file_path, legend_filename, gis_filename):
     
     with open(file_path, "r") as csvfile:
 
-        spamreader = csv.DictReader(csvfile, delimiter=',')
+        spamreader = pd.read_csv(csvfile, delimiter=',', thousands=".", decimal=",")
+        spamreader = spamreader.to_dict(orient='records')
 
         for row in spamreader:
             sez = row['SEZIONE CENSIMENTO']
