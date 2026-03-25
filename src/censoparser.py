@@ -22,8 +22,7 @@ def parse_censo(file_path, legend_filename, gis_filename):
     
     with open(file_path, "r") as csvfile:
 
-        spamreader = pd.read_csv(csvfile, delimiter=',', thousands=".", decimal=",")
-        spamreader = spamreader.to_dict(orient='records')
+        spamreader = pd.read_csv(csvfile, delimiter=',', thousands=".", decimal=",").to_dict(orient='records')
 
         for row in spamreader:
             sez = row['SEZIONE CENSIMENTO']

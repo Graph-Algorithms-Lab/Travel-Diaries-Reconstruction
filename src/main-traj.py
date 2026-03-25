@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
         origin = diary[0]
         origin_location = locations[V[origin[1]]].zone_name
-        print(f"Origin location {origin_location}")
+        # print(f"Origin location {origin_location}")
         filtered_rows = list(filter(lambda x: x['COMUNE'] == special[origin_location] if origin_location in special else x['COMUNE'] == origin_location, rows))
         weights = list(map(lambda x: int(x['P1']), filtered_rows))
         choosen = random.choices(filtered_rows, weights=weights, k=1)[0]
