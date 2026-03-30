@@ -115,7 +115,8 @@ if __name__ == "__main__":
 
         geo_travel_diaries.append(geo_travel_diary)
     
-    print(f"Generated geo travel diaries: {geo_travel_diaries}")
+    print("Generated geo travel diaries:")
+    pprint.pp(geo_travel_diaries)
 
     if VERBOSE:
         print("Checking correctness of travel diaries found")
