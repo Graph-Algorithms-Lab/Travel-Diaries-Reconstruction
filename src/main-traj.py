@@ -14,7 +14,11 @@ if __name__ == "__main__":
 
     random.seed(561)
 
-    geo_travel_diaries = entrypoint(EXACT, EDGE, UNIFORM, GO_BACK_HOME, HOW_MANY_DIARIES)
+    geo_travel_diaries = entrypoint('../data/fs/Output Matrice Fondamentale Firenze.csv',
+                                    '../data/censo/censo-2021.csv',
+                                    '../data/censo/censo-legenda.csv',
+                                    '../data/zonizzazione/Sez censimento Toscana_riparate.shp',
+                                    EXACT, EDGE, UNIFORM, GO_BACK_HOME, HOW_MANY_DIARIES)
     
     print("Generated geo travel diaries:")
     pprint.pp(geo_travel_diaries)

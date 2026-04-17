@@ -326,7 +326,8 @@ def random_point_in_polygon(polygon):
         if polygon.contains(p):
             return p
 
-def entrypoint(EXACT=False, EDGE=True, UNIFORM=False, GO_BACK_HOME=True, HOW_MANY_DIARIES=100):
+def entrypoint(fundamental_matrix_filename, censo_filename, censo_legend_filename, zones_filename,
+               EXACT=False, EDGE=True, UNIFORM=False, GO_BACK_HOME=True, HOW_MANY_DIARIES=100):
     
     # t = 30
     t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
@@ -335,7 +336,7 @@ def entrypoint(EXACT=False, EDGE=True, UNIFORM=False, GO_BACK_HOME=True, HOW_MAN
 
     def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x)) and is_in_florence(x)
     
-    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, '../data/fs/Output Matrice Fondamentale Firenze.csv', F)
+    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, F)
     
     if VERBOSE:
         print("nodes", G.nodes())
@@ -372,7 +373,7 @@ def entrypoint(EXACT=False, EDGE=True, UNIFORM=False, GO_BACK_HOME=True, HOW_MAN
             print([locations[V[u]].zone_name for t, u in diary])
 
     # let's try to join censo data for the diaries found.
-    rows, legend, sections = parse_censo( '../data/censo/censo-2021.csv', '../data/censo/censo-legenda.csv', '../data/zonizzazione/Sez censimento Toscana_riparate.shp')
+    rows, legend, sections = parse_censo(censo_filename, censo_legend_filename, zones_filename)
 
     special = {}
     special['Rifredi'] = 'Firenze'
