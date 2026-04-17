@@ -385,8 +385,6 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
 
     age_codes = list(map(lambda x: 'P' + str(x), list(range(30, 46)) + list(range(67, 83))))
 
-    geo_travel_diaries = []
-
     for diary in res:
 
         path = []
@@ -422,10 +420,10 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
             'choosen': choosen
         }
 
-        geo_travel_diaries.append(geo_travel_diary)
+        yield geo_travel_diary
     
     if VERBOSE:
         print("Checking correctness of travel diaries found")
         print(check_result(G,parts,res, EDGE))
 
-    return geo_travel_diaries
+    
