@@ -43,7 +43,8 @@ def parse_od_matrix(file_path, filename_gis):
     locations = {}
     rows = []
 
-    gdf = load_gis(filename_gis)
+    # gdf = gpd.read_file(filename_gis).set_crs("EPSG:3857").to_crs("EPSG:4326")
+    gdf = gpd.read_file(filename_gis).to_crs("EPSG:4326")
 
     with open(file_path, "r") as csvfile:
 
@@ -68,19 +69,6 @@ def parse_od_matrix(file_path, filename_gis):
                 locations[n] = gdf[gdf.area_id == str(n)].iloc[0]
 
     return rows, locations, V, count
-
-def load_gis(filename):
-
-    gdf = gpd.read_file(filename)
-
-    # 2. Imposta CRS (se manca)
-    gdf = gdf.set_crs("EPSG:4326")
-
-    # (opzionale ma consigliato) lavora in metri
-    gdf = gdf.to_crs("EPSG:3857")
-
-    return gdf
-
 
 # rows, locations = parse_od_matrix('../data/fs/Output Matrice Fondamentale Firenze.csv')
 
