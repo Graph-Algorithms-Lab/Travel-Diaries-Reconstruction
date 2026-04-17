@@ -15,6 +15,7 @@ if __name__ == "__main__":
     random.seed(561)
 
     geo_travel_diaries = entrypoint('../data/fs/Output Matrice Fondamentale Firenze.csv',
+                                    '../data/gis/mavfa-fs-3000_zone.shp',
                                     '../data/censo/censo-2021.csv',
                                     '../data/censo/censo-legenda.csv',
                                     '../data/zonizzazione/Sez censimento Toscana_riparate.shp',

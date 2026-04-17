@@ -36,17 +36,17 @@ def get_destination_id(row): return int(row[DESTINATION_ID_KEY])
 def get_destination_id_norm(row): return row[DESTINATION_ID_NORM_KEY]
 def get_weight(row): return int(row[WEIGHT_KEY])
 
-def parse_od_matrix(file_path, filename_gis):
+def parse_od_matrix(fundamental_matrix_filename, gis_filename):
 
     count = {}
     V = []
     locations = {}
     rows = []
 
-    # gdf = gpd.read_file(filename_gis).set_crs("EPSG:3857").to_crs("EPSG:4326")
-    gdf = gpd.read_file(filename_gis).to_crs("EPSG:4326")
+    # gdf = gpd.read_file(gis_filename).set_crs("EPSG:3857").to_crs("EPSG:4326")
+    gdf = gpd.read_file(gis_filename).to_crs("EPSG:4326")
 
-    with open(file_path, "r") as csvfile:
+    with open(fundamental_matrix_filename, "r") as csvfile:
 
         spamreader = csv.DictReader(csvfile, delimiter=';')
 

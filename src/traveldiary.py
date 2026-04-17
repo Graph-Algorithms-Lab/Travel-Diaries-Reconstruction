@@ -9,9 +9,9 @@ DEBUG=False
 TRACE=False
 
 
-def build_t_partite_graph_from_od_matrix(t, file_path, F):
+def build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_filename, F):
 
-    rows, locations, V, Vinv = parse_od_matrix(file_path, filename_gis="../data/gis/mavfa-fs-3000_zone.shp")
+    rows, locations, V, Vinv = parse_od_matrix(fundamental_matrix_filename, gis_filename)
 
     def M(x):
         u = get_time_window(x) - 1, Vinv[get_source_id(x)]
@@ -326,7 +326,7 @@ def random_point_in_polygon(polygon):
         if polygon.contains(p):
             return p
 
-def entrypoint(fundamental_matrix_filename, censo_filename, censo_legend_filename, zones_filename,
+def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_legend_filename, zones_filename,
                EXACT=False, EDGE=True, UNIFORM=False, GO_BACK_HOME=True, HOW_MANY_DIARIES=100):
     
     # t = 30
@@ -336,7 +336,7 @@ def entrypoint(fundamental_matrix_filename, censo_filename, censo_legend_filenam
 
     def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x)) and is_in_florence(x)
     
-    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, F)
+    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_filename, F)
     
     if VERBOSE:
         print("nodes", G.nodes())
