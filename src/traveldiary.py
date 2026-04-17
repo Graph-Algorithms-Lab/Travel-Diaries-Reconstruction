@@ -389,7 +389,7 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
 
     for diary in res:
 
-        geo_travel_diary = []
+        path = []
 
         origin = diary[0]
         origin_location = locations[V[origin[1]]].zone_name
@@ -399,20 +399,28 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
         choosen = random.choices(filtered_rows, weights=weights, k=1)[0]
         age_weights = list(map(lambda age_code: int(choosen[age_code]), age_codes))
         age_code_choosen = random.choices(age_codes, weights=age_weights, k=1)[0]
-        point = random_point_in_polygon(sections[choosen['SEZIONE CENSIMENTO']].geometry)
+        section = sections[choosen['SEZIONE CENSIMENTO']]
+        point = random_point_in_polygon(section.geometry)
         # print(f"Origin {origin_location} choosen {choosen['COMUNE']} age_code {age_code_choosen} age {legend[age_code_choosen]}")
         # print(f"Choosen point {point} for its home.")
 
-        geo_travel_diary.append((origin_location, {'x': point.x, "y": point.y}))
+        path.append({'zone': origin_location, 'lon': point.x, 'lat': point.y})
 
         for rest in diary[1:]:
             loc = locations[V[rest[1]]]
             dest_location = loc.zone_name
             point = random_point_in_polygon(loc.geometry)
             # print(f"Destination {dest_location} choosen point {point} for its destination.")
-            geo_travel_diary.append((dest_location, {'x': point.x, "y": point.y}))
+            path.append({'zone': dest_location, 'lon': point.x, 'lat': point.y})
 
-        if GO_BACK_HOME: geo_travel_diary[-1] = geo_travel_diary[0]
+        if GO_BACK_HOME: path[-1] = path[0]
+
+        geo_travel_diary = {
+            'path': path,
+            'age_code': age_code_choosen,
+            'age': legend[age_code_choosen],
+            'choosen': choosen
+        }
 
         geo_travel_diaries.append(geo_travel_diary)
     
