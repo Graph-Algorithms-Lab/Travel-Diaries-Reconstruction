@@ -403,14 +403,14 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
         # print(f"Origin {origin_location} choosen {choosen['COMUNE']} age_code {age_code_choosen} age {legend[age_code_choosen]}")
         # print(f"Choosen point {point} for its home.")
 
-        geo_travel_diary.append((origin_location, point))
+        geo_travel_diary.append((origin_location, {'x': point.x, "y": point.y}))
 
         for rest in diary[1:]:
             loc = locations[V[rest[1]]]
             dest_location = loc.zone_name
             point = random_point_in_polygon(loc.geometry)
             # print(f"Destination {dest_location} choosen point {point} for its destination.")
-            geo_travel_diary.append((dest_location, point))
+            geo_travel_diary.append((dest_location, {'x': point.x, "y": point.y}))
 
         if GO_BACK_HOME: geo_travel_diary[-1] = geo_travel_diary[0]
 
