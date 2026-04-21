@@ -419,7 +419,7 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
             'age': legend[age_code_choosen],
             'comune': choosen['COMUNE'],
             'type': 'diary',
-            'id': random.randint(0, 1e9),
+            'id': random.randint(0, int(1e9)),
         }
     
     if VERBOSE:
