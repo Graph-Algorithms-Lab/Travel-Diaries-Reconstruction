@@ -413,14 +413,14 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
 
         if GO_BACK_HOME: path[-1] = path[0]
 
-        geo_travel_diary = {
+        yield {
             'path': path,
             'age_code': age_code_choosen,
             'age': legend[age_code_choosen],
-            'choosen': choosen
+            'comune': choosen['COMUNE'],
+            'type': 'diary',
+            'id': random.randint(0, 1e9),
         }
-
-        yield geo_travel_diary
     
     if VERBOSE:
         print("Checking correctness of travel diaries found")

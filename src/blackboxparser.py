@@ -22,7 +22,7 @@ def parse_blackboxes(home_chains_filename, staypoints_filename, trips_filename, 
     for index, row in home_chains.sample(n=how_many, weights=w_colname).iterrows():
 
         local_trips = []
-        chain = {'id': row['id_chain'], 'trips': local_trips}
+        chain = {'id': row['id_chain'], 'trips': local_trips, 'type': 'blackbox'}
 
         for id_trip in row['info']['id_trips']:
             trip = trips[trips['id'] == id_trip].iloc[0].to_dict()
@@ -38,7 +38,6 @@ def parse_blackboxes(home_chains_filename, staypoints_filename, trips_filename, 
                 'dt_d_unixtime': trip['dt_d_unixtime'],
                 'staypoint_o': { 'id': trip['id_staypoint_o'], 'lon': staypoint_o['lon'], 'lat': staypoint_o['lat'] },
                 'staypoint_d': { 'id': trip['id_staypoint_d'], 'lon': staypoint_d['lon'], 'lat': staypoint_d['lat'] },
-                
             })
             
 
