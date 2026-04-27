@@ -13,9 +13,7 @@ def parse_censo(file_path, legend_filename, gis_filename):
     
     with open(file_path, "r") as csvfile:
 
-        reader = pd.read_csv(csvfile, delimiter=',', thousands=".", decimal=",").to_dict(orient='records')
-
-        for row in reader:
+        for row in pd.read_csv(csvfile, delimiter=',', thousands=".", decimal=",").to_dict(orient='records'):
             sez = row['SEZIONE CENSIMENTO']
             sections[sez] = gdf[gdf['SEZ21_ID'] == int(sez)].iloc[0]
             rows.append(row)
@@ -24,9 +22,7 @@ def parse_censo(file_path, legend_filename, gis_filename):
 
     with open(legend_filename, "r") as csvfile:
 
-        reader = csv.DictReader(csvfile, delimiter=',')
-
-        for row in reader:
+        for row in csv.DictReader(csvfile, delimiter=','):
             
             legend[row['NOME_CAMPO']] = row['DEFINIZIONE']
 

@@ -3,6 +3,7 @@ import random
 import copy
 from odparser import *
 from censoparser import *
+from shapely.geometry import Point
 
 VERBOSE=False
 DEBUG=False
@@ -387,6 +388,11 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
 
     age_codes = list(map(lambda x: 'P' + str(x), list(range(30, 46)) + list(range(67, 83))))
 
+    def make_path_step(loc, point):
+        lon, lat = point.x, point.y
+        x, y = lon_lat_to_x_y(lon, lat)
+        return {'zone': loc, 'lon': point.x, 'lat': point.y, 'x': x, 'y': y}
+
     for diary in res:
 
         path = []
@@ -401,17 +407,14 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
         age_code_choosen = random.choices(age_codes, weights=age_weights, k=1)[0]
         section = sections[choosen['SEZIONE CENSIMENTO']]
         point = random_point_in_polygon(section.geometry)
-        # print(f"Origin {origin_location} choosen {choosen['COMUNE']} age_code {age_code_choosen} age {legend[age_code_choosen]}")
-        # print(f"Choosen point {point} for its home.")
-
-        path.append({'zone': origin_location, 'lon': point.x, 'lat': point.y})
+        
+        path.append(make_path_step(origin_location, point))
 
         for rest in diary[1:]:
             loc = locations[V[rest[1]]]
             dest_location = loc.zone_name
             point = random_point_in_polygon(loc.geometry)
-            # print(f"Destination {dest_location} choosen point {point} for its destination.")
-            path.append({'zone': dest_location, 'lon': point.x, 'lat': point.y})
+            path.append(make_path_step(dest_location, point))
 
         if GO_BACK_HOME: path[-1] = path[0]
 

@@ -1,6 +1,7 @@
 
 import json
 import pandas as pd
+from geoutils import lon_lat_to_x_y
 
 def parse_blackboxes(home_chains_filename, staypoints_filename, trips_filename, selector_tuple):
 
@@ -30,14 +31,17 @@ def parse_blackboxes(home_chains_filename, staypoints_filename, trips_filename, 
             staypoint_o = staypoints[staypoints['id_staypoint'] == trip['id_staypoint_o']].iloc[0].to_dict()
             staypoint_d = staypoints[staypoints['id_staypoint'] == trip['id_staypoint_d']].iloc[0].to_dict()
 
+            x_o, y_o = lon_lat_to_x_y(staypoint_o['lon'], staypoint_o['lat'])
+            x_d, y_d = lon_lat_to_x_y(staypoint_d['lon'], staypoint_d['lat'])
+            
             local_trips.append({
                 'id': trip['id'],
                 'dt_o': str(trip['dt_o']),
                 'dt_d': str(trip['dt_d']),
                 'dt_o_unixtime': trip['dt_o_unixtime'],
                 'dt_d_unixtime': trip['dt_d_unixtime'],
-                'staypoint_o': { 'id': trip['id_staypoint_o'], 'lon': staypoint_o['lon'], 'lat': staypoint_o['lat'] },
-                'staypoint_d': { 'id': trip['id_staypoint_d'], 'lon': staypoint_d['lon'], 'lat': staypoint_d['lat'] },
+                'staypoint_o': { 'id': trip['id_staypoint_o'], 'lon': staypoint_o['lon'], 'lat': staypoint_o['lat'], 'x': x_o, 'y': y_o },
+                'staypoint_d': { 'id': trip['id_staypoint_d'], 'lon': staypoint_d['lon'], 'lat': staypoint_d['lat'], 'x': x_d, 'y': y_d },
             })
             
 
