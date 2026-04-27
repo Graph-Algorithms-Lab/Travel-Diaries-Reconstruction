@@ -383,6 +383,8 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
     special["Incisa in Val d'Arno"] = 'Figline e Incisa Valdarno'
     special["Figline Valdarno"] = 'Figline e Incisa Valdarno'
 
+    def F(x): return x['COMUNE'] == special[origin_location] if origin_location in special else x['COMUNE'] == origin_location
+
     age_codes = list(map(lambda x: 'P' + str(x), list(range(30, 46)) + list(range(67, 83))))
 
     for diary in res:
@@ -392,7 +394,7 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
         origin = diary[0]
         origin_location = locations[V[origin[1]]].zone_name
         # print(f"Origin location {origin_location}")
-        filtered_rows = list(filter(lambda x: x['COMUNE'] == special[origin_location] if origin_location in special else x['COMUNE'] == origin_location, rows))
+        filtered_rows = list(filter(F, rows))
         weights = list(map(lambda x: int(x['P1']), filtered_rows))
         choosen = random.choices(filtered_rows, weights=weights, k=1)[0]
         age_weights = list(map(lambda age_code: int(choosen[age_code]), age_codes))
