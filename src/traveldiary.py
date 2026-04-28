@@ -3,16 +3,16 @@ import random
 import copy
 from odparser import *
 from censoparser import *
+from geoutils import *
 from shapely.geometry import Point
 
 VERBOSE=False
 DEBUG=False
 TRACE=False
 
+def build_t_partite_graph_from_od_matrix(instants, od_matrix_tuple, F):
 
-def build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_filename, F):
-
-    rows, locations, V, Vinv = parse_od_matrix(fundamental_matrix_filename, gis_filename)
+    rows, locations, V, Vinv = od_matrix_tuple
 
     def M(x):
         u = get_time_window(x) - 1, Vinv[get_source_id(x)]
@@ -25,36 +25,52 @@ def build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_fil
     discovered_nodes = set()
 
     for u, v, w in map(M, filter(F, rows)):
-        d = locations[V[u[1]]].geometry.centroid.distance(locations[V[v[1]]].geometry.centroid)
-        G.add_edge(u, v, weight=w, distance=d)
-        discovered_nodes.add(u[1])
-        discovered_nodes.add(v[1])
 
-    discovered_nodes = list(sorted(discovered_nodes))
+        src, dst = u[1], v[1]
+
+        src_loc, dst_loc = locations[V[src]], locations[V[dst]]
+
+        src_point = Point(*lon_lat_to_x_y(src_loc.lon, src_loc.lat))
+        dst_point = Point(*lon_lat_to_x_y(dst_loc.lon, dst_loc.lat))
+
+        # d = locations[V[src]].geometry.centroid.distance(locations[V[dst]].geometry.centroid)
+        d = src_point.distance(dst_point)
+        G.add_edge(u, v, weight=w, distance=d)
+
+        # to guarantee uniqueness
+        discovered_nodes.add(src)
+        discovered_nodes.add(dst)
+
+    discovered_nodes = list(discovered_nodes)
+    discovered_nodes.sort() # just to have a deterministic order for debugging and testing
     
     partitions = []
     
-    for i in range(t):
+    for t in range(instants):
         
         part = []
         
         for j in discovered_nodes:
 
-            node = i, j
+            node = t, j
 
             if node not in G.nodes: G.add_node(node)
             
             nn = G.nodes[node]
             
-            centroid = locations[V[j]].geometry.centroid
+            j_loc = locations[V[j]]
+
+            x, y = lon_lat_to_x_y(j_loc.lon, j_loc.lat)
 
             nn['count'] = 0
-            nn['part'] = i
+            nn['part'] = t
             nn['idx'] = j
-            nn['lat'] = float(locations[V[j]].lat)
-            nn['lon'] = float(locations[V[j]].lon)
-            nn['centroid'] = centroid
-            nn['zone_name'] = locations[V[j]].zone_name
+            nn['lat'] = j_loc.lat
+            nn['lon'] = j_loc.lon
+            nn['x'] = x
+            nn['y'] = y
+            nn['centroid'] = j_loc.geometry.centroid
+            nn['zone_name'] = j_loc.zone_name
 
             part.append(node)
         
@@ -70,7 +86,7 @@ def build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_fil
             w_out = sum(w for _, _, w in G.out_edges(tpart_u, data='weight'))
 
             if tpart == 0: G.nodes[tpart_u]['count'] = w_out
-            elif tpart == t - 1: G.nodes[tpart_u]['count'] = w_in
+            elif tpart == instants - 1: G.nodes[tpart_u]['count'] = w_in
             else: # 0 < tpart < t - 1:
                 d = w_in - w_out
 
@@ -92,7 +108,7 @@ def build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_fil
         for v in discovered_nodes:
 
             count_start = G.nodes[(0, v)]['count']
-            count_end = G.nodes[(t-1, v)]['count']
+            count_end = G.nodes[(instants - 1, v)]['count']
 
             d = abs(count_start - count_end) / max(count_start, count_end)
 
@@ -102,7 +118,7 @@ def build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_fil
 
         print(len(discovered_nodes), "nodes discovered in the OD matrix, with", c, "nodes having a relative difference in count greater than 1% between partition 0 and partition", t-1)
 
-    return G, partitions, locations, V, Vinv
+    return G, partitions
 
 def build_t_partite_graph(t: int, n: int, N: int, Edge = True, go_back_home=False):
     """
@@ -217,9 +233,9 @@ def get_next_travel_diary(G, partitions, uniform, edge, exact, weighted, go_back
     if not u: return None
     
     path = [u]
-    
-    for i in range(len(partitions)-1): 
-        
+
+    for i in range(len(partitions)-1):
+
         v = (i + 1, path[0][1]) if i == len(partitions)-2 and go_back_home else get_next_vertex(G, u, uniform, weighted)
         
         if v == None: break
@@ -316,64 +332,35 @@ def check_result(G, partitions, travel_diaries, Edge=True):
     else:
         print("same_nodes and same_counts", same_nodes, same_counts)
         return same_nodes and same_counts
+  
+
+def travel_diaries_iter(
+        fundamental_matrix_filename, 
+        gis_filename, 
+        censo_filename, 
+        censo_legend_filename, 
+        zones_filename,
+        exact_required=False, 
+        EDGE=True, 
+        UNIFORM=False, 
+        go_back_home=True, 
+        how_many_diaries=100,
+        how_many_instants=7,
+        weekday=3,
+        recurrent=True,):
     
-def random_point_in_polygon(polygon):
-    minx, miny, maxx, maxy = polygon.bounds
+    def F(x): return is_weekday(x, weekday) and ((not recurrent) or is_recurrent(x)) and not is_hidden(get_time_window(x)) and is_in_florence(x)
     
-    while True:
-        x = random.uniform(minx, maxx)
-        y = random.uniform(miny, maxy)
-        p = Point(x, y)
-        if polygon.contains(p):
-            return p
+    gdf = read_gis_shape_file(gis_filename)
 
-def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_legend_filename, zones_filename,
-               EXACT=False, EDGE=True, UNIFORM=False, GO_BACK_HOME=True, HOW_MANY_DIARIES=100):
-    
-    # t = 30
-    t = len(range(0, 7)) # see the shared doc about fasce orarie lookup. TODO: fix that later.
-    n = 50
-    N = 200
+    rows, locations, V, Vinv = od_matrix_tuple = parse_od_matrix(fundamental_matrix_filename, gdf)
 
-    def F(x): return is_weekday(x, 3) and is_recurrent(x) and not is_hidden(get_time_window(x)) and is_in_florence(x)
-    
-    G, parts, locations, V, Vinv = build_t_partite_graph_from_od_matrix(t, fundamental_matrix_filename, gis_filename, F)
-    
-    if VERBOSE:
-        print("nodes", G.nodes())
-        print("edges", G.edges())
+    G, parts = build_t_partite_graph_from_od_matrix(how_many_instants, od_matrix_tuple, F)
 
-    for i in range(t):
-        s=0
-        for u in parts[i]:
-            s0 = G.nodes[u].get("count", 0)
-            s += s0
-            if DEBUG: print("Vertex", u, "with count", s0)
-        if DEBUG: print(f"Somma etichette dei vertici partizione {i}: {s}")
+    sol_iterable = get_travel_diaries(G, parts, UNIFORM, EDGE, exact_required, go_back_home)
 
-    # Verifica: stampiamo la somma delle etichette per ogni coppia di partizioni consecutive
-    if EDGE and DEBUG:
-        for i in range(t - 1):
-            s = 0
-            for u in parts[i]:
-                for v in parts[i + 1]:
-                    w = G[u].get(v, {'weight': 0})['weight']
-                    s += w
-                    print("edge from", u, "to", v ,"with label", w)
-            
-            print(f"Somma etichette tra partizione {i} e {i+1}: {s}")
+    res = list(sol_iterable) if exact_required else [next(sol_iterable) for _ in range(how_many_diaries)]
 
-    sol_iterable = get_travel_diaries(G, parts, UNIFORM, EDGE, EXACT, GO_BACK_HOME)
-
-    res = list(sol_iterable) if EXACT else [next(sol_iterable) for _ in range(HOW_MANY_DIARIES)]
-
-    print("Found", len(res), "travel diaries")
-
-    if DEBUG:
-        for diary in res:
-            print([locations[V[u]].zone_name for t, u in diary])
-
-    # let's try to join censo data for the diaries found.
     rows, legend, sections = parse_censo(censo_filename, censo_legend_filename, zones_filename)
 
     special = {}
@@ -399,7 +386,6 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
 
         origin = diary[0]
         origin_location = locations[V[origin[1]]].zone_name
-        # print(f"Origin location {origin_location}")
         filtered_rows = list(filter(F, rows))
         weights = list(map(lambda x: int(x['P1']), filtered_rows))
         choosen = random.choices(filtered_rows, weights=weights, k=1)[0]
@@ -416,7 +402,7 @@ def entrypoint(fundamental_matrix_filename, gis_filename, censo_filename, censo_
             point = random_point_in_polygon(loc.geometry)
             path.append(make_path_step(dest_location, point))
 
-        if GO_BACK_HOME: path[-1] = path[0]
+        if go_back_home: path[-1] = path[0]
 
         yield {
             'path': path,
