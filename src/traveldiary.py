@@ -6,6 +6,58 @@ from censoparser import *
 from geoutils import *
 from shapely.geometry import Point
 
+MALE_SEX_CODE = 'C1M'
+FEMALE_SEX_CODE = 'C1F'
+SEX_CODES = [MALE_SEX_CODE, FEMALE_SEX_CODE]
+def sex_code_to_value(code, male='m', female='f'): return male if code == MALE_SEX_CODE else female
+
+AGE_CODES = {
+    MALE_SEX_CODE: list(map(lambda x: 'P' + str(x), list(range(33, 43)))),
+    FEMALE_SEX_CODE: list(map(lambda x: 'P' + str(x), list(range(70, 80)))),
+}
+AGE_CODES_TO_INTERVALS = {
+    'P17': (15, 20),
+    'P18': (20, 25),
+    'P19': (25, 30),
+    'P20': (30, 35),
+    'P21': (35, 40),
+    'P22': (40, 45),
+    'P23': (45, 50),
+    'P24': (50, 55),
+    'P25': (55, 60),
+    'P26': (60, 65),
+    'P33': (15, 20),
+    'P34': (20, 25),
+    'P35': (25, 30),
+    'P36': (30, 35),
+    'P37': (35, 40),
+    'P38': (40, 45),
+    'P39': (45, 50),
+    'P40': (50, 55),
+    'P41': (55, 60),
+    'P42': (60, 65),
+    'P70': (15, 20),
+    'P71': (20, 25),
+    'P72': (25, 30),
+    'P73': (30, 35),
+    'P74': (35, 40),
+    'P75': (40, 45),
+    'P76': (45, 50),
+    'P77': (50, 55),
+    'P78': (55, 60),
+    'P79': (60, 65),
+}
+def age_code_to_value(code):
+    a, b = AGE_CODES_TO_INTERVALS[code]
+    return random.randint(a, b-1)
+
+EMPLOYED_CODES = {
+    MALE_SEX_CODE: ['P102', 'UP102'],
+    FEMALE_SEX_CODE: ['P103', 'UP103'],
+}
+def employed_code_to_value(code, employed='yes', unemployed='no'):
+    return employed if code == 'P102' or code == 'P103' else unemployed
+
 VERBOSE=False
 DEBUG=False
 TRACE=False
@@ -332,7 +384,6 @@ def check_result(G, partitions, travel_diaries, Edge=True):
     else:
         print("same_nodes and same_counts", same_nodes, same_counts)
         return same_nodes and same_counts
-  
 
 def travel_diaries_iter(
         fundamental_matrix_filename, 
@@ -347,7 +398,8 @@ def travel_diaries_iter(
         how_many_diaries=100,
         how_many_instants=7,
         weekday=3,
-        recurrent=True,):
+        recurrent=True,
+    ):
     
     def F(x): return is_weekday(x, weekday) and ((not recurrent) or is_recurrent(x)) and not is_hidden(get_time_window(x)) and is_in_florence(x)
     
@@ -371,10 +423,6 @@ def travel_diaries_iter(
     special["Incisa in Val d'Arno"] = 'Figline e Incisa Valdarno'
     special["Figline Valdarno"] = 'Figline e Incisa Valdarno'
 
-    def F(x): return x['COMUNE'] == special[origin_location] if origin_location in special else x['COMUNE'] == origin_location
-
-    age_codes = list(map(lambda x: 'P' + str(x), list(range(30, 46)) + list(range(67, 83))))
-
     def make_path_step(loc, point):
         lon, lat = point.x, point.y
         x, y = lon_lat_to_x_y(lon, lat)
@@ -384,14 +432,35 @@ def travel_diaries_iter(
 
         path = []
 
-        origin = diary[0]
-        origin_location = locations[V[origin[1]]].zone_name
+        _, v0 = diary[0]
+
+        origin_location = locations[V[v0]].zone_name
+        
+        def F(x): 
+            loc = x['COMUNE']
+            return loc == special[origin_location] if origin_location in special else loc == origin_location
+        
         filtered_rows = list(filter(F, rows))
-        weights = list(map(lambda x: int(x['P1']), filtered_rows))
-        choosen = random.choices(filtered_rows, weights=weights, k=1)[0]
-        age_weights = list(map(lambda age_code: int(choosen[age_code]), age_codes))
-        age_code_choosen = random.choices(age_codes, weights=age_weights, k=1)[0]
-        section = sections[choosen['SEZIONE CENSIMENTO']]
+
+        def weighted_sample(row, keys):
+            ws = list(map(lambda k: row[k], keys))
+            key = random.choices(keys, weights=ws, k=1)[0]
+            return key
+        
+        weights = list(map(lambda x: x['C1'], filtered_rows))
+        choosen_row = random.choices(filtered_rows, weights=weights, k=1)[0]
+
+        # sex_weights = list(map(lambda age_code: choosen_row[age_code], SEX_CODES))
+        # sex_code_choosen = random.choices(SEX_CODES, weights=sex_weights, k=1)[0]
+        sex_code_choosen = weighted_sample(choosen_row, SEX_CODES)
+
+        # age_weights = list(map(lambda age_code: choosen_row[age_code], AGE_CODES[sex_code_choosen]))
+        # age_code_choosen = random.choices(AGE_CODES[sex_code_choosen], weights=age_weights, k=1)[0]
+        age_code_choosen = weighted_sample(choosen_row, AGE_CODES[sex_code_choosen])
+
+        employed_code_choosen = weighted_sample(choosen_row, EMPLOYED_CODES[sex_code_choosen])
+
+        section = sections[choosen_row['SEZIONE CENSIMENTO']]
         point = random_point_in_polygon(section.geometry)
         
         path.append(make_path_step(origin_location, point))
@@ -406,11 +475,13 @@ def travel_diaries_iter(
 
         yield {
             'path': path,
-            'age_code': age_code_choosen,
-            'age': legend[age_code_choosen],
-            'comune': choosen['COMUNE'],
+            'age': age_code_to_value(age_code_choosen),
+            'age_def': legend[age_code_choosen],
+            'comune': choosen_row['COMUNE'],
             'type': 'diary',
             'id': random.randint(0, int(1e9)),
+            'sex': sex_code_to_value(sex_code_choosen),
+            'employed': employed_code_to_value(employed_code_choosen),
         }
     
     if VERBOSE:
