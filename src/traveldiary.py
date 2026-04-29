@@ -436,9 +436,7 @@ def travel_diaries_iter(
 
         origin_location = locations[V[v0]].zone_name
         
-        def F(x): 
-            loc = x['COMUNE']
-            return loc == special[origin_location] if origin_location in special else loc == origin_location
+        def F(x): return special.get(origin_location, origin_location) == x['COMUNE']
         
         filtered_rows = list(filter(F, rows))
 
