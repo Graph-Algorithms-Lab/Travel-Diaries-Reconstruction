@@ -58,6 +58,16 @@ EMPLOYED_CODES = {
 def employed_code_to_value(code, employed='yes', unemployed='no'):
     return employed if code == 'P102' or code == 'P103' else unemployed
 
+MISSING_MUNICIPALITIES = {
+    'Rifredi': 'Firenze',
+    'Campo di Marte': 'Firenze',
+    'Firenze Centro Storico': 'Firenze',
+    "Barberino Val d'Elsa": 'Barberino Tavarnelle',
+    "Incisa in Val d'Arno": 'Figline e Incisa Valdarno',
+    "Figline Valdarno": 'Figline e Incisa Valdarno',
+}
+
+
 VERBOSE=False
 DEBUG=False
 TRACE=False
@@ -413,21 +423,18 @@ def travel_diaries_iter(
 
     res = list(sol_iterable) if exact_required else [next(sol_iterable) for _ in range(how_many_diaries)]
 
-    rows, legend, sections = parse_censo(censo_filename, censo_legend_filename, zones_filename)
-
-    special = {}
-    special['Rifredi'] = 'Firenze'
-    special['Campo di Marte'] = 'Firenze'
-    special['Firenze Centro Storico'] = 'Firenze'
-    special["Barberino Val d'Elsa"] = 'Barberino Tavarnelle'
-    special["Incisa in Val d'Arno"] = 'Figline e Incisa Valdarno'
-    special["Figline Valdarno"] = 'Figline e Incisa Valdarno'
+    censo_rows, censo_legend, censo_sections = parse_censo(censo_filename, censo_legend_filename, zones_filename)
 
     def make_path_step(loc, point):
         lon, lat = point.x, point.y
         x, y = lon_lat_to_x_y(lon, lat)
         return {'zone': loc, 'lon': point.x, 'lat': point.y, 'x': x, 'y': y}
 
+    def weighted_sample(row, keys):
+        ws = list(map(lambda k: row[k], keys))
+        key = random.choices(keys, weights=ws, k=1)[0]
+        return key
+        
     for diary in res:
 
         path = []
@@ -436,35 +443,24 @@ def travel_diaries_iter(
 
         origin_location = locations[V[v0]].zone_name
         
-        def F(x): return special.get(origin_location, origin_location) == x['COMUNE']
+        def F(x): return MISSING_MUNICIPALITIES.get(origin_location, origin_location) == x['COMUNE']
         
-        filtered_rows = list(filter(F, rows))
+        filtered_censo_rows = list(filter(F, censo_rows))
 
-        def weighted_sample(row, keys):
-            ws = list(map(lambda k: row[k], keys))
-            key = random.choices(keys, weights=ws, k=1)[0]
-            return key
-        
-        weights = list(map(lambda x: x['C1'], filtered_rows))
-        choosen_row = random.choices(filtered_rows, weights=weights, k=1)[0]
+        weights = list(map(lambda x: x['C1'], filtered_censo_rows))
+        choosen_row = random.choices(filtered_censo_rows, weights=weights, k=1)[0]
 
-        # sex_weights = list(map(lambda age_code: choosen_row[age_code], SEX_CODES))
-        # sex_code_choosen = random.choices(SEX_CODES, weights=sex_weights, k=1)[0]
         sex_code_choosen = weighted_sample(choosen_row, SEX_CODES)
-
-        # age_weights = list(map(lambda age_code: choosen_row[age_code], AGE_CODES[sex_code_choosen]))
-        # age_code_choosen = random.choices(AGE_CODES[sex_code_choosen], weights=age_weights, k=1)[0]
         age_code_choosen = weighted_sample(choosen_row, AGE_CODES[sex_code_choosen])
-
         employed_code_choosen = weighted_sample(choosen_row, EMPLOYED_CODES[sex_code_choosen])
 
-        section = sections[choosen_row['SEZIONE CENSIMENTO']]
+        section = censo_sections[choosen_row['SEZIONE CENSIMENTO']]
         point = random_point_in_polygon(section.geometry)
         
         path.append(make_path_step(origin_location, point))
 
-        for rest in diary[1:]:
-            loc = locations[V[rest[1]]]
+        for _, v in diary[1:]:
+            loc = locations[V[v]]
             dest_location = loc.zone_name
             point = random_point_in_polygon(loc.geometry)
             path.append(make_path_step(dest_location, point))
@@ -474,7 +470,7 @@ def travel_diaries_iter(
         yield {
             'path': path,
             'age': age_code_to_value(age_code_choosen),
-            'age_def': legend[age_code_choosen],
+            # 'age_def': censo_legend[age_code_choosen],
             'comune': choosen_row['COMUNE'],
             'type': 'diary',
             'id': random.randint(0, int(1e9)),
