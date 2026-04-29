@@ -15,11 +15,20 @@ RECURRENT_KEY = 'SISTEMATICITA_ID'
 TIME_WINDOW_KEY = 'FASCIA_ORARIA_MACRO_ID'
 WEIGHT_KEY = 'VIAGGI'
 
-def is_hidden(v): return v == '-1' or v == -1
+TIME_WINDOW_MAP = {
+    '1': (0, (4 * 60 + 59) * 60),
+    '2': (5 * 60 * 60, (8 * 60 + 59) * 60),
+    '3': (9 * 60 * 60, (12 * 60 + 59) * 60),
+    '4': (13 * 60 * 60, (15 * 60 + 59) * 60),
+    '5': (16 * 60 * 60, (19 * 60 + 59) * 60),
+    '6': (20 * 60 * 60, (23 * 60 + 59) * 60),
+}
+
+def is_hidden(v): return v == '-1'
 def is_weekday(row, weekday): return row[WEEKDAY_KEY] == str(weekday)
 def is_recurrent(row): return row[RECURRENT_KEY] == '1'
 
-def get_time_window(row): return int(row[TIME_WINDOW_KEY])
+def get_time_window(row): return row[TIME_WINDOW_KEY]
 def is_in_region(row, region_name): return row[SOURCE_REGION_KEY] == region_name and row[DESTINATION_REGION_KEY] == region_name
 def is_in_tuscany(row): return is_in_region(row, 'Toscana')
 def is_in_province(row, province_name): return row[SOURCE_PROVINCE_KEY] == province_name and row[DESTINATION_PROVINCE_KEY] == province_name

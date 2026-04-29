@@ -77,8 +77,9 @@ def build_t_partite_graph_from_od_matrix(instants, od_matrix_tuple, F):
     rows, locations, V, Vinv = od_matrix_tuple
 
     def M(x):
-        u = get_time_window(x) - 1, Vinv[get_source_id(x)]
-        v = get_time_window(x), Vinv[get_destination_id(x)]
+        tw_x = int(get_time_window(x))
+        u = tw_x - 1, Vinv[get_source_id(x)]
+        v = tw_x, Vinv[get_destination_id(x)]
         w = get_weight(x)
         return u, v, w
 
@@ -425,10 +426,17 @@ def travel_diaries_iter(
 
     censo_rows, censo_legend, censo_sections = parse_censo(censo_filename, censo_legend_filename, zones_filename)
 
-    def make_path_step(loc, point):
+    def make_path_step(time_window, loc, point):
         lon, lat = point.x, point.y
         x, y = lon_lat_to_x_y(lon, lat)
-        return {'zone': loc, 'lon': point.x, 'lat': point.y, 'x': x, 'y': y}
+        return {
+            'zone': loc, 
+            'lon': point.x, 
+            'lat': point.y, 
+            'x': x, 
+            'y': y,
+            'departure_time_in_seconds_from_midnight': random.randint(*TIME_WINDOW_MAP.get(str(time_window), (-1, -1))),
+        }
 
     def weighted_sample(row, keys):
         ws = list(map(lambda k: row[k], keys))
@@ -439,7 +447,7 @@ def travel_diaries_iter(
 
         path = []
 
-        _, v0 = diary[0]
+        t0, v0 = diary[0]
 
         origin_location = locations[V[v0]].zone_name
         
@@ -457,15 +465,17 @@ def travel_diaries_iter(
         section = censo_sections[choosen_row['SEZIONE CENSIMENTO']]
         point = random_point_in_polygon(section.geometry)
         
-        path.append(make_path_step(origin_location, point))
+        path.append(make_path_step(t0 + 1, origin_location, point))
 
-        for _, v in diary[1:]:
+        for t, v in diary[1:]:
             loc = locations[V[v]]
             dest_location = loc.zone_name
             point = random_point_in_polygon(loc.geometry)
-            path.append(make_path_step(dest_location, point))
+            path.append(make_path_step(t + 1, dest_location, point))
 
-        if go_back_home: path[-1] = path[0]
+        if go_back_home: 
+            path[-1] = path[0]
+            path[-1]['departure_time_in_seconds_from_midnight'] = -1
 
         yield {
             'path': path,
