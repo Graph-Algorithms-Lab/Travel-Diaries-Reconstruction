@@ -435,7 +435,7 @@ def travel_diaries_iter(
             'lat': point.y, 
             'x': x, 
             'y': y,
-            'departure_time_in_seconds_from_midnight': random.randint(*TIME_WINDOW_MAP.get(str(time_window), (-1, -1))),
+            'departure_time_in_seconds_from_midnight': random.randint(*TIME_WINDOW_MAP[str(time_window)]),
         }
 
     def weighted_sample(row, keys):
