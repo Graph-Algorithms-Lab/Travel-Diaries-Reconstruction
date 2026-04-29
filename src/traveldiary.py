@@ -474,7 +474,7 @@ def travel_diaries_iter(
             path.append(make_path_step(t + 1, dest_location, point))
 
         if go_back_home: 
-            path[-1] = path[0]
+            path[-1] = dict(**path[0])
             path[-1]['departure_time_in_seconds_from_midnight'] = -1
 
         yield {
